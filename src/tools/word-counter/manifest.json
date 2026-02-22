@@ -1,0 +1,8 @@
+{
+  "id": "word-counter",
+  "name": "Word Counter",
+  "description": "Count words, characters, and sentences in any text",
+  "icon": "📝",
+  "defaultSize": { "w": 10, "h": 8 },
+  "minSize": { "w": 6, "h": 5 }
+}

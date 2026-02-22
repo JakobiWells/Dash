@@ -1,0 +1,8 @@
+{
+    "id": "number-converter",
+    "name": "Number Converter",
+    "description": "Convert numbers between Binary, Octal, Decimal, and Hexadecimal",
+    "icon": "🔢",
+    "defaultSize": { "w": 12, "h": 6 },
+    "minSize": { "w": 8, "h": 6 }
+  }

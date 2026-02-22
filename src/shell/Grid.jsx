@@ -1,0 +1,255 @@
+import { useState, useEffect, useRef, useCallback } from 'react'
+import GridLayout from 'react-grid-layout'
+import { getTools, getComponent } from '../registry'
+import ToolCard from '../components/ToolCard'
+import FileCard from './FileCard'
+import AddToolModal from './AddToolModal'
+
+// Must match background-size in index.css
+const CELL = 32
+
+function snapWidth(raw) {
+  return Math.floor(raw / CELL) * CELL
+}
+
+const ALL_TOOLS = getTools()
+
+// Instance IDs are `${toolId}__${suffix}` — split to get the base tool ID
+function getToolId(instanceId) {
+  return instanceId.split('__')[0]
+}
+
+function buildDefaultLayout(tools, cols) {
+  let x = 0, y = 0
+  return tools.map((tool) => {
+    const w = tool.defaultSize?.w ?? 10
+    const h = tool.defaultSize?.h ?? 8
+    const minW = tool.minSize?.w ?? 4
+    const minH = tool.minSize?.h ?? 4
+    if (x + w > cols) { x = 0; y += h }
+    const instanceId = `${tool.id}__0`
+    const item = { i: instanceId, x, y, w, h, minW, minH }
+    x += w
+    return item
+  })
+}
+
+const LAYOUT_KEY = 'toolbox-layout-v3'
+const ACTIVE_KEY = 'toolbox-active-ids-v3'
+
+function loadSaved() {
+  try { const s = localStorage.getItem(LAYOUT_KEY); return s ? JSON.parse(s) : null } catch { return null }
+}
+function saveSaved(layout) {
+  // Never persist file items — they are in-memory only
+  const toolsOnly = layout.filter(item => !item.i.startsWith('file__'))
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(toolsOnly)) } catch {}
+}
+function loadActiveIds() {
+  try { const s = localStorage.getItem(ACTIVE_KEY); return s ? JSON.parse(s) : null } catch { return null }
+}
+function saveActiveIds(ids) {
+  try { localStorage.setItem(ACTIVE_KEY, JSON.stringify(ids)) } catch {}
+}
+
+const PAD = CELL
+
+export default function Grid({ showAddModal, setShowAddModal }) {
+  const containerRef = useRef(null)
+  const [containerWidth, setContainerWidth] = useState(
+    () => snapWidth(window.innerWidth - PAD * 2)
+  )
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const obs = new ResizeObserver(([entry]) => {
+      setContainerWidth(snapWidth(entry.contentRect.width))
+    })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  const cols = containerWidth / CELL
+
+  const defaultInstanceIds = ALL_TOOLS.map((t) => `${t.id}__0`)
+  const [activeIds, setActiveIds] = useState(() => loadActiveIds() ?? defaultInstanceIds)
+  const [layout, setLayout] = useState(() => loadSaved() ?? buildDefaultLayout(ALL_TOOLS, cols))
+  const [fileItems, setFileItems] = useState([])
+
+  const onLayoutChange = useCallback((newLayout) => {
+    setLayout(newLayout)
+    saveSaved(newLayout)
+  }, [])
+
+  const removeTool = useCallback((instanceId) => {
+    setActiveIds((prev) => {
+      const next = prev.filter((i) => i !== instanceId)
+      saveActiveIds(next)
+      return next
+    })
+    setLayout((prev) => {
+      const updated = prev.filter((item) => item.i !== instanceId)
+      saveSaved(updated)
+      return updated
+    })
+  }, [])
+
+  const addTool = useCallback((toolId) => {
+    const tool = ALL_TOOLS.find((t) => t.id === toolId)
+    const instanceId = `${toolId}__${Date.now()}`
+    const w = tool?.defaultSize?.w ?? 10
+    const h = tool?.defaultSize?.h ?? 8
+    setLayout((prev) => {
+      const maxY = prev.reduce((m, item) => Math.max(m, item.y + item.h), 0)
+      const newItem = { i: instanceId, x: 0, y: maxY, w, h, minW: tool?.minSize?.w ?? 4, minH: tool?.minSize?.h ?? 4 }
+      const updated = [...prev, newItem]
+      saveSaved(updated)
+      return updated
+    })
+    setActiveIds((prev) => {
+      const next = [...prev, instanceId]
+      saveActiveIds(next)
+      return next
+    })
+    setShowAddModal(false)
+  }, [setShowAddModal])
+
+  const removeFileItem = useCallback((id) => {
+    setFileItems((prev) => {
+      const item = prev.find((f) => f.id === id)
+      if (item?.objectUrl) URL.revokeObjectURL(item.objectUrl)
+      return prev.filter((f) => f.id !== id)
+    })
+    setLayout((prev) => prev.filter((item) => item.i !== id))
+  }, [])
+
+  // Show an invisible full-screen overlay the moment files enter the window.
+  // The overlay sits above all tool cards, so it always receives the drop —
+  // no risk of inner elements (inputs, textareas, etc.) swallowing the event.
+  const [fileDragActive, setFileDragActive] = useState(false)
+
+  useEffect(() => {
+    function onDragEnter(e) {
+      if (e.dataTransfer.types.includes('Files')) setFileDragActive(true)
+    }
+    document.addEventListener('dragenter', onDragEnter)
+    return () => document.removeEventListener('dragenter', onDragEnter)
+  }, [])
+
+  function handleOverlayDrop(e) {
+    e.preventDefault()
+    setFileDragActive(false)
+
+    const files = Array.from(e.dataTransfer.files)
+    if (!files.length) return
+
+    const container = containerRef.current
+    if (!container) return
+    const rect = container.getBoundingClientRect()
+
+    // rect.top and e.clientY are both viewport-relative, so this is correct
+    // even when the page is scrolled. No clamping — the grid auto-expands.
+    const dropX = Math.max(0, Math.floor((e.clientX - rect.left - PAD) / CELL))
+    const dropY = Math.max(0, Math.floor((e.clientY - rect.top  - PAD) / CELL))
+    const now = Date.now()
+
+    const newFileItems = files.map((file, i) => ({
+      id: `file__${now + i}`,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      objectUrl: URL.createObjectURL(file),
+    }))
+
+    // Check if the cursor is over a tool's own file drop zone.
+    // If so, forward the files there via a custom event instead of placing icons.
+    const under = document.elementsFromPoint(e.clientX, e.clientY)
+      .find(el => el !== e.currentTarget && el.hasAttribute('data-file-drop-target'))
+    if (under) {
+      under.dispatchEvent(new CustomEvent('filedrop', { detail: { files }, bubbles: true }))
+      return
+    }
+
+    setFileItems((prev) => [...prev, ...newFileItems])
+    setLayout((prev) => {
+      const placed = []
+      const additions = newFileItems.map((item, i) => {
+        const w = 4, h = 5
+        const x = Math.min(dropX + i * 4, Math.max(0, cols - w))
+        // Bump y down until this item doesn't overlap any existing item or
+        // previously placed file in this same drop batch
+        let y = dropY
+        const occupied = [...prev, ...placed]
+        while (occupied.some(li =>
+          li.x < x + w && li.x + li.w > x &&
+          li.y < y + h && li.y + li.h > y
+        )) { y++ }
+        const entry = { i: item.id, x, y, w, h, minW: 3, minH: 4 }
+        placed.push(entry)
+        return entry
+      })
+      return [...prev, ...additions]
+    })
+  }
+
+  return (
+    <>
+      {fileDragActive && (
+        <div
+          className="fixed inset-0 z-[9999]"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleOverlayDrop}
+          onDragLeave={() => setFileDragActive(false)}
+        />
+      )}
+      <div
+        ref={containerRef}
+        style={{ padding: `${PAD}px` }}
+        className="w-full relative"
+      >
+
+        <GridLayout
+          width={containerWidth}
+          cols={cols}
+          rowHeight={CELL}
+          margin={[0, 0]}
+          layout={layout}
+          onLayoutChange={onLayoutChange}
+          draggableHandle=".drag-handle"
+          compactType={null}
+          preventCollision={true}
+          useCSSTransforms={false}
+          resizableOpts={{ grid: [CELL, CELL] }}
+        >
+          {activeIds.map((instanceId) => {
+            const toolId = getToolId(instanceId)
+            const tool = ALL_TOOLS.find((t) => t.id === toolId)
+            if (!tool) return null
+            const Component = getComponent(toolId)
+            return (
+              <div key={instanceId}>
+                <ToolCard tool={tool} onRemove={() => removeTool(instanceId)}>
+                  {Component && <Component />}
+                </ToolCard>
+              </div>
+            )
+          })}
+          {fileItems.map((file) => (
+            <div key={file.id}>
+              <FileCard file={file} onRemove={() => removeFileItem(file.id)} />
+            </div>
+          ))}
+        </GridLayout>
+      </div>
+
+      {showAddModal && (
+        <AddToolModal
+          tools={ALL_TOOLS}
+          onAdd={addTool}
+          onClose={() => setShowAddModal(false)}
+        />
+      )}
+    </>
+  )
+}

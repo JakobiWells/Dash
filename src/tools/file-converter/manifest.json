@@ -1,0 +1,8 @@
+{
+  "id": "file-converter",
+  "name": "File Converter",
+  "description": "Convert images, audio, and video files locally — no upload needed",
+  "icon": "🔄",
+  "defaultSize": { "w": 12, "h": 10 },
+  "minSize": { "w": 8, "h": 8 }
+}

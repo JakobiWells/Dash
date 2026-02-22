@@ -1,0 +1,8 @@
+{
+    "id": "regex-tester",
+    "name": "Regex Tester",
+    "description": "Test regex patterns against text and view matches",
+    "icon": "🔍",
+    "defaultSize": { "w": 10, "h": 8 },
+    "minSize": { "w": 8, "h": 6 }
+  }

@@ -1,0 +1,8 @@
+{
+    "id": "case-converter",
+    "name": "Case Converter",
+    "description": "Convert text to uppercase, lowercase, title case, or sentence case",
+    "icon": "🔠",
+    "defaultSize": { "w": 10, "h": 8 },
+    "minSize": { "w": 6, "h": 5 }
+  }
