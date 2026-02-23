@@ -1,6 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { PDFDocument } from 'pdf-lib'
 
+function Spinner() {
+  return (
+    <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M12 2a10 10 0 1 0 10 10" />
+    </svg>
+  )
+}
+
 function download(blob, filename) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -159,7 +167,7 @@ export default function PdfSplitter() {
         onDrop={(e) => { e.preventDefault(); setDragging(false); loadFile(e.dataTransfer.files[0]) }}
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
-        onClick={() => !file && inputRef.current?.click()}
+        onClick={() => { if (!file && inputRef.current) { inputRef.current.value = ''; inputRef.current.click() } }}
         className={`
           flex items-center justify-center gap-1.5 rounded-xl border-2 border-dashed
           transition-colors select-none
@@ -202,8 +210,8 @@ export default function PdfSplitter() {
       {file && (
         <>
           {thumbsLoading && (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-xs text-gray-400">Rendering pages…</p>
+            <div className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-400">
+              <Spinner />Rendering pages…
             </div>
           )}
 
@@ -285,6 +293,11 @@ export default function PdfSplitter() {
                   Split into {file.pageCount} individual PDF{file.pageCount !== 1 ? 's' : ''}
                 </button>
 
+                {status === 'working' && (
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
+                    <Spinner />{statusMsg}
+                  </div>
+                )}
                 {status === 'done' && <p className="text-xs text-green-500 text-center">{statusMsg}</p>}
                 {status === 'error' && <p className="text-xs text-red-400 text-center">{statusMsg}</p>}
               </div>

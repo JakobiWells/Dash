@@ -85,7 +85,6 @@ export default function AudioExtractor() {
       const outputName = `output.${format}`
 
       await ff.writeFile(inputName, await fetchFile(file.raw))
-      // -vn = no video stream, output only audio
       await ff.exec(['-i', inputName, '-vn', outputName])
 
       const data = await ff.readFile(outputName)
@@ -118,7 +117,7 @@ export default function AudioExtractor() {
         onDrop={onDrop}
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
-        onClick={() => !file && inputRef.current?.click()}
+        onClick={() => { if (!file && inputRef.current) { inputRef.current.value = ''; inputRef.current.click() } }}
         className={`
           flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed
           transition-colors select-none flex-1
@@ -176,7 +175,9 @@ export default function AudioExtractor() {
 
       {/* Status */}
       {status === 'loading' && (
-        <p className="text-xs text-gray-400 text-center">Loading FFmpeg…</p>
+        <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
+          <Spinner />Loading FFmpeg…
+        </div>
       )}
       {status === 'extracting' && (
         <div className="flex flex-col gap-1">
@@ -186,7 +187,9 @@ export default function AudioExtractor() {
               style={{ width: `${Math.round(progress * 100)}%` }}
             />
           </div>
-          <p className="text-xs text-gray-400 text-center">{Math.round(progress * 100)}%</p>
+          <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
+            <Spinner />{Math.round(progress * 100)}%
+          </div>
         </div>
       )}
       {status === 'done' && (
@@ -222,5 +225,13 @@ export default function AudioExtractor() {
       </div>
 
     </div>
+  )
+}
+
+function Spinner() {
+  return (
+    <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M12 2a10 10 0 1 0 10 10" />
+    </svg>
   )
 }

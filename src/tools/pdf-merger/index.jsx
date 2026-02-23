@@ -1,6 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { PDFDocument } from 'pdf-lib'
 
+function Spinner() {
+  return (
+    <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M12 2a10 10 0 1 0 10 10" />
+    </svg>
+  )
+}
+
 function download(blob, filename) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -121,7 +129,7 @@ export default function PdfMerger() {
         onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files) }}
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => { if (inputRef.current) { inputRef.current.value = ''; inputRef.current.click() } }}
         className={`
           flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed
           cursor-pointer transition-colors select-none
@@ -203,7 +211,9 @@ export default function PdfMerger() {
             disabled:bg-gray-100 disabled:text-gray-300 disabled:cursor-not-allowed
             bg-gray-900 text-white hover:bg-gray-700"
         >
-          {status === 'merging' ? 'Merging…' : 'Merge PDFs'}
+          {status === 'merging'
+            ? <span className="flex items-center gap-1.5"><Spinner />Merging…</span>
+            : 'Merge PDFs'}
         </button>
       </div>
 
