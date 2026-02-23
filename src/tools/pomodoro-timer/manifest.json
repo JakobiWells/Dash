@@ -1,8 +1,10 @@
 {
-    "id": "pomodoro-timer",
-    "name": "Pomodoro Timer",
-    "description": "Countdown timer with optional Pomodoro work/break cycles",
-    "icon": "⏱️",
-    "defaultSize": { "w": 8, "h": 6 },
-    "minSize": { "w": 6, "h": 5 }
-  }
+  "id": "pomodoro-timer",
+  "name": "Pomodoro Timer",
+  "description": "Countdown timer with optional Pomodoro work/break cycles",
+  "icon": "⏱️",
+  "category": "Productivity",
+  "popular": true,
+  "defaultSize": { "w": 8, "h": 6 },
+  "minSize": { "w": 6, "h": 5 }
+}

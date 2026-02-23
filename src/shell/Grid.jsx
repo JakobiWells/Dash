@@ -72,9 +72,8 @@ export default function Grid({ showAddModal, setShowAddModal }) {
 
   const cols = containerWidth / CELL
 
-  const defaultInstanceIds = ALL_TOOLS.map((t) => `${t.id}__0`)
-  const [activeIds, setActiveIds] = useState(() => loadActiveIds() ?? defaultInstanceIds)
-  const [layout, setLayout] = useState(() => loadSaved() ?? buildDefaultLayout(ALL_TOOLS, cols))
+  const [activeIds, setActiveIds] = useState(() => loadActiveIds() ?? [])
+  const [layout, setLayout] = useState(() => loadSaved() ?? [])
   const [fileItems, setFileItems] = useState([])
 
   const onLayoutChange = useCallback((newLayout) => {

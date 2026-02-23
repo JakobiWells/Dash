@@ -1,0 +1,10 @@
+{
+  "id": "pdf-merger",
+  "name": "PDF Merger",
+  "description": "Combine multiple PDFs into one — drag, reorder, merge",
+  "icon": "📄",
+  "category": "Files",
+  "popular": true,
+  "defaultSize": { "w": 10, "h": 12 },
+  "minSize": { "w": 8, "h": 9 }
+}

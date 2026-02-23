@@ -1,0 +1,9 @@
+{
+  "id": "pdf-splitter",
+  "name": "PDF Splitter",
+  "description": "Extract pages or split a PDF into individual files",
+  "icon": "✂️",
+  "category": "Files",
+  "defaultSize": { "w": 10, "h": 12 },
+  "minSize": { "w": 8, "h": 9 }
+}
