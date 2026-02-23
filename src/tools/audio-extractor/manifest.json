@@ -1,0 +1,9 @@
+{
+  "id": "audio-extractor",
+  "name": "Audio Extractor",
+  "description": "Pull the audio track out of any video file — MP3, WAV, OGG, and more",
+  "icon": "🎵",
+  "category": "Files",
+  "defaultSize": { "w": 8, "h": 9 },
+  "minSize": { "w": 6, "h": 7 }
+}
