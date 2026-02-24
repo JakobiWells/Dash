@@ -95,12 +95,12 @@ export default function AddToolModal({ tools, onAdd, onClose }) {
 
       {/* Category pills — hidden while searching */}
       {!filtered && categoryPills.length > 0 && (
-        <div className="flex gap-1.5 px-4 py-2.5 border-b border-gray-100 overflow-x-auto shrink-0" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex flex-wrap gap-1.5 px-4 py-2.5 border-b border-gray-100 shrink-0">
           {categoryPills.map(cat => (
             <button
               key={cat}
               onClick={() => scrollToSection(cat)}
-              className="shrink-0 px-2.5 py-1 rounded-full text-xs text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded-full text-xs text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer"
             >
               {cat}
             </button>
