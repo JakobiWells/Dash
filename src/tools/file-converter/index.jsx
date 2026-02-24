@@ -1,9 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { convert, getCategory } from './converter'
 
-// Map of input extension → list of supported output formats
 const CONVERSION_MAP = {
-  // Images
   png:  ['jpg', 'webp', 'gif', 'bmp', 'tiff'],
   jpg:  ['png', 'webp', 'gif', 'bmp', 'tiff'],
   jpeg: ['png', 'webp', 'gif', 'bmp', 'tiff'],
@@ -12,20 +10,17 @@ const CONVERSION_MAP = {
   bmp:  ['png', 'jpg', 'webp'],
   tiff: ['png', 'jpg', 'webp'],
   svg:  ['png', 'jpg', 'webp'],
-  // Audio
   mp3:  ['wav', 'ogg', 'flac', 'm4a'],
   wav:  ['mp3', 'ogg', 'flac', 'm4a'],
   ogg:  ['mp3', 'wav', 'flac'],
   flac: ['mp3', 'wav', 'ogg'],
   m4a:  ['mp3', 'wav', 'ogg'],
   aac:  ['mp3', 'wav', 'ogg'],
-  // Video
   mp4:  ['mov', 'avi', 'webm', 'mkv', 'gif'],
   mov:  ['mp4', 'avi', 'webm', 'mkv'],
   avi:  ['mp4', 'mov', 'webm', 'mkv'],
   webm: ['mp4', 'mov', 'avi', 'mkv'],
   mkv:  ['mp4', 'mov', 'avi', 'webm'],
-  // Documents
   pdf:  ['docx', 'txt', 'png', 'jpg'],
   docx: ['pdf', 'txt', 'html', 'md'],
   doc:  ['pdf', 'docx', 'txt'],
@@ -53,9 +48,10 @@ export default function FileConverter() {
   const [file, setFile] = useState(null)
   const [outputFormat, setOutputFormat] = useState('')
   const [dragging, setDragging] = useState(false)
-  const [status, setStatus] = useState(null) // null | 'loading' | 'converting' | 'done' | 'error'
+  const [status, setStatus] = useState(null)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState(null)
+  const [outputs, setOutputs] = useState([])
   const inputRef = useRef(null)
   const dropZoneRef = useRef(null)
 
@@ -76,7 +72,6 @@ export default function FileConverter() {
     if (f) handleFile(f)
   }, [handleFile])
 
-  // Accept files forwarded from the grid overlay via custom event
   useEffect(() => {
     const el = dropZoneRef.current
     if (!el) return
@@ -100,11 +95,17 @@ export default function FileConverter() {
     setStatus(category === 'audio' || category === 'video' ? 'loading' : 'converting')
 
     try {
-      await convert(file.raw, file.ext, outputFormat, (p) => {
+      const result = await convert(file.raw, file.ext, outputFormat, (p) => {
         setStatus('converting')
         setProgress(p)
       })
-      setStatus('done')
+      setOutputs(prev => [...prev, {
+        id: Date.now(),
+        filename: result.filename,
+        blob: result.blob,
+        icon: fileEmoji(outputFormat),
+      }])
+      setStatus(null)
     } catch (err) {
       setStatus('error')
       setError(err.message)
@@ -162,7 +163,7 @@ export default function FileConverter() {
         )}
       </div>
 
-      {/* Progress / status */}
+      {/* Status */}
       {status === 'loading' && (
         <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
           <Spinner />Loading FFmpeg…
@@ -180,9 +181,6 @@ export default function FileConverter() {
             <Spinner />{Math.round(progress * 100)}%
           </div>
         </div>
-      )}
-      {status === 'done' && (
-        <p className="text-xs text-green-500 text-center">Download started!</p>
       )}
       {status === 'error' && (
         <p className="text-xs text-red-400 text-center">{error}</p>
@@ -219,6 +217,10 @@ export default function FileConverter() {
           {status === 'loading' ? 'Loading…' : status === 'converting' ? 'Converting…' : 'Convert'}
         </button>
       </div>
+
+      {/* Output stack */}
+      <OutputSection outputs={outputs} setOutputs={setOutputs} />
+
     </div>
   )
 }
@@ -239,6 +241,58 @@ function fileEmoji(ext) {
   if (['docx','doc'].includes(ext)) return '📝'
   if (['xlsx','xls','csv'].includes(ext)) return '📊'
   if (['pptx','ppt'].includes(ext)) return '📊'
-  if (['md','html','txt'].includes(ext)) return '📄'
   return '📄'
+}
+
+function OutputSection({ outputs, setOutputs }) {
+  if (outputs.length === 0) return null
+  return (
+    <div className="flex flex-col gap-1 shrink-0">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Output</span>
+        {outputs.length > 1 && (
+          <button onClick={() => setOutputs([])} className="text-[10px] text-gray-300 hover:text-gray-500 cursor-pointer">
+            Clear all
+          </button>
+        )}
+      </div>
+      <div className="flex flex-col gap-1 max-h-32 overflow-y-auto">
+        {outputs.map(out => (
+          <OutputRow key={out.id} output={out} onRemove={() => setOutputs(p => p.filter(o => o.id !== out.id))} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function OutputRow({ output, onRemove }) {
+  function handleDownload() {
+    const url = URL.createObjectURL(output.blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = output.filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
+      <span className="text-sm shrink-0">{output.icon ?? '📄'}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-gray-700 truncate">{output.filename}</p>
+        <p className="text-[10px] text-gray-400">{formatBytes(output.blob.size)}</p>
+      </div>
+      <button
+        onClick={handleDownload}
+        className="shrink-0 px-2.5 py-1 rounded-md text-xs font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors cursor-pointer"
+      >
+        Download
+      </button>
+      <button onClick={onRemove} className="shrink-0 text-gray-300 hover:text-gray-500 cursor-pointer">
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+          <path d="M1 1l7 7M8 1L1 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+        </svg>
+      </button>
+    </div>
+  )
 }

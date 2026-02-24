@@ -39,7 +39,7 @@ export async function convert(file, inputExt, outputFormat, onProgress) {
     blob = await convertDocument(file, inputExt, outputFormat)
   }
 
-  download(blob, outputFilename(file.name, outputFormat))
+  return { blob, filename: outputFilename(file.name, outputFormat) }
 }
 
 // ─── Image (Canvas API) ──────────────────────────────────────────────────────
