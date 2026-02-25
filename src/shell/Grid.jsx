@@ -5,6 +5,7 @@ import ToolCard from '../components/ToolCard'
 import FileCard from './FileCard'
 import WelcomeCard from './WelcomeCard'
 import AddToolModal from './AddToolModal'
+import { useAuth } from '../context/AuthContext'
 
 // Must match background-size in index.css
 const CELL = 32
@@ -20,25 +21,34 @@ function getToolId(instanceId) {
   return instanceId.split('__')[0]
 }
 
-function buildDefaultLayout(tools, cols) {
-  let x = 0, y = 0
-  return tools.map((tool) => {
-    const w = tool.defaultSize?.w ?? 10
-    const h = tool.defaultSize?.h ?? 8
-    const minW = tool.minSize?.w ?? 4
-    const minH = tool.minSize?.h ?? 4
-    if (x + w > cols) { x = 0; y += h }
-    const instanceId = `${tool.id}__0`
-    const item = { i: instanceId, x, y, w, h, minW, minH }
-    x += w
-    return item
-  })
-}
-
 const LAYOUT_KEY = 'toolbox-layout-v3'
 const ACTIVE_KEY = 'toolbox-active-ids-v3'
-const WELCOME_KEY = 'dashpad-welcome-dismissed'
 const WELCOME_ID = 'welcome__0'
+const WELCOME_ITEM = { i: WELCOME_ID, x: 0, y: 0, w: 11, h: 15, minW: 7, minH: 10 }
+
+// Default tools shown on first visit, positioned to the right of the welcome card
+const DEFAULT_TOOL_IDS = ['file-converter', 'color-tool', 'pomodoro-timer']
+
+function buildFirstVisitLayout() {
+  const positions = [
+    { x: 11, y: 0 },  // file-converter
+    { x: 23, y: 0 },  // color-tool
+    { x: 11, y: 10 }, // pomodoro-timer
+  ]
+  return DEFAULT_TOOL_IDS.map((id, i) => {
+    const tool = ALL_TOOLS.find(t => t.id === id)
+    if (!tool) return null
+    return {
+      i: `${id}__0`,
+      x: positions[i].x,
+      y: positions[i].y,
+      w: tool.defaultSize?.w ?? 10,
+      h: tool.defaultSize?.h ?? 8,
+      minW: tool.minSize?.w ?? 4,
+      minH: tool.minSize?.h ?? 4,
+    }
+  }).filter(Boolean)
+}
 
 function loadSaved() {
   try { const s = localStorage.getItem(LAYOUT_KEY); return s ? JSON.parse(s) : null } catch { return null }
@@ -58,6 +68,7 @@ function saveActiveIds(ids) {
 const PAD = CELL
 
 export default function Grid({ showAddModal, setShowAddModal }) {
+  const { user, loading } = useAuth()
   const containerRef = useRef(null)
   const [containerWidth, setContainerWidth] = useState(
     () => snapWidth(window.innerWidth - PAD * 2)
@@ -75,16 +86,31 @@ export default function Grid({ showAddModal, setShowAddModal }) {
 
   const cols = containerWidth / CELL
 
-  const [activeIds, setActiveIds] = useState(() => loadActiveIds() ?? [])
-  const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem(WELCOME_KEY))
-  const [layout, setLayout] = useState(() => {
-    const saved = loadSaved() ?? []
-    if (!localStorage.getItem(WELCOME_KEY)) {
-      return [{ i: WELCOME_ID, x: 0, y: 0, w: 10, h: 14, minW: 7, minH: 10 }, ...saved]
-    }
-    return saved
+  const [activeIds, setActiveIds] = useState(() => {
+    const saved = loadActiveIds()
+    if (saved !== null) return saved
+    return DEFAULT_TOOL_IDS.map(id => `${id}__0`)
   })
+
+  // Session-only — welcome shows every page load for non-signed-in users
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false)
+  const showWelcome = !loading && !user && !welcomeDismissed
+
+  const [layout, setLayout] = useState(() => {
+    const saved = loadSaved()
+    if (saved !== null) return saved
+    return buildFirstVisitLayout()
+  })
+
   const [fileItems, setFileItems] = useState([])
+
+  // Add or remove welcome card from layout whenever showWelcome changes
+  useEffect(() => {
+    setLayout(prev => {
+      const withoutWelcome = prev.filter(item => item.i !== WELCOME_ID)
+      return showWelcome ? [WELCOME_ITEM, ...withoutWelcome] : withoutWelcome
+    })
+  }, [showWelcome])
 
   const onLayoutChange = useCallback((newLayout) => {
     setLayout(newLayout)
@@ -92,13 +118,8 @@ export default function Grid({ showAddModal, setShowAddModal }) {
   }, [])
 
   const dismissWelcome = useCallback(() => {
-    localStorage.setItem(WELCOME_KEY, '1')
-    setShowWelcome(false)
-    setLayout(prev => {
-      const updated = prev.filter(item => item.i !== WELCOME_ID)
-      saveSaved(updated)
-      return updated
-    })
+    setWelcomeDismissed(true)
+    // layout update is handled by the showWelcome effect above
   }, [])
 
   const removeTool = useCallback((instanceId) => {
