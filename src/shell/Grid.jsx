@@ -3,6 +3,7 @@ import GridLayout from 'react-grid-layout'
 import { getTools, getComponent } from '../registry'
 import ToolCard from '../components/ToolCard'
 import FileCard from './FileCard'
+import WelcomeCard from './WelcomeCard'
 import AddToolModal from './AddToolModal'
 
 // Must match background-size in index.css
@@ -36,13 +37,15 @@ function buildDefaultLayout(tools, cols) {
 
 const LAYOUT_KEY = 'toolbox-layout-v3'
 const ACTIVE_KEY = 'toolbox-active-ids-v3'
+const WELCOME_KEY = 'dashpad-welcome-dismissed'
+const WELCOME_ID = 'welcome__0'
 
 function loadSaved() {
   try { const s = localStorage.getItem(LAYOUT_KEY); return s ? JSON.parse(s) : null } catch { return null }
 }
 function saveSaved(layout) {
-  // Never persist file items — they are in-memory only
-  const toolsOnly = layout.filter(item => !item.i.startsWith('file__'))
+  // Never persist file or welcome items
+  const toolsOnly = layout.filter(item => !item.i.startsWith('file__') && !item.i.startsWith('welcome__'))
   try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(toolsOnly)) } catch {}
 }
 function loadActiveIds() {
@@ -73,12 +76,29 @@ export default function Grid({ showAddModal, setShowAddModal }) {
   const cols = containerWidth / CELL
 
   const [activeIds, setActiveIds] = useState(() => loadActiveIds() ?? [])
-  const [layout, setLayout] = useState(() => loadSaved() ?? [])
+  const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem(WELCOME_KEY))
+  const [layout, setLayout] = useState(() => {
+    const saved = loadSaved() ?? []
+    if (!localStorage.getItem(WELCOME_KEY)) {
+      return [{ i: WELCOME_ID, x: 0, y: 0, w: 10, h: 14, minW: 7, minH: 10 }, ...saved]
+    }
+    return saved
+  })
   const [fileItems, setFileItems] = useState([])
 
   const onLayoutChange = useCallback((newLayout) => {
     setLayout(newLayout)
     saveSaved(newLayout)
+  }, [])
+
+  const dismissWelcome = useCallback(() => {
+    localStorage.setItem(WELCOME_KEY, '1')
+    setShowWelcome(false)
+    setLayout(prev => {
+      const updated = prev.filter(item => item.i !== WELCOME_ID)
+      saveSaved(updated)
+      return updated
+    })
   }, [])
 
   const removeTool = useCallback((instanceId) => {
@@ -221,6 +241,11 @@ export default function Grid({ showAddModal, setShowAddModal }) {
           useCSSTransforms={false}
           resizableOpts={{ grid: [CELL, CELL] }}
         >
+          {showWelcome && (
+            <div key={WELCOME_ID}>
+              <WelcomeCard onDismiss={dismissWelcome} />
+            </div>
+          )}
           {activeIds.map((instanceId) => {
             const toolId = getToolId(instanceId)
             const tool = ALL_TOOLS.find((t) => t.id === toolId)
