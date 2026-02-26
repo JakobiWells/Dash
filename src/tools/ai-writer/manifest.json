@@ -1,0 +1,9 @@
+{
+  "id": "ai-writer",
+  "name": "AI Writer",
+  "description": "Summarize, rewrite, fix grammar, or expand text using AI",
+  "icon": "✨",
+  "category": "AI",
+  "defaultSize": { "w": 10, "h": 14 },
+  "minSize": { "w": 8, "h": 10 }
+}
