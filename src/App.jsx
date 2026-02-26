@@ -66,7 +66,52 @@ export default function App() {
 
         <div className="ml-auto flex items-center gap-2">
 
-          {/* Account */}
+          {/* Feedback */}
+          <button
+            data-tally-open="9qdXyp"
+            data-tally-width="400"
+            data-tally-overlay="1"
+            data-tally-form-events-forwarding="1"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            aria-label="Feedback"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </button>
+
+          {/* Settings */}
+          <div ref={settingsRef} className="relative">
+            <button
+              onClick={() => setShowSettings(v => !v)}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              aria-label="Settings"
+            >
+              <GearIcon />
+            </button>
+            {showSettings && (
+              <div className="absolute right-0 top-10 w-52 bg-white dark:bg-[#1e1e1c] rounded-lg shadow-lg border border-gray-200 dark:border-[#2e2e2c] py-1 z-50">
+                <button
+                  onClick={() => setDarkMode(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a28] cursor-pointer"
+                >
+                  <span>Dark mode</span>
+                  <div className={`relative w-8 h-4 rounded-full transition-colors ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                    <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${darkMode ? 'translate-x-4' : ''}`} />
+                  </div>
+                </button>
+                <div className="border-t border-gray-100 dark:border-[#2e2e2c] my-1" />
+                <button
+                  onClick={clearLayout}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a28] cursor-pointer"
+                >
+                  Clear layout
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Account — far right */}
           {!loading && (
             user ? (
               <div ref={userMenuRef} className="relative">
@@ -98,38 +143,6 @@ export default function App() {
               </button>
             )
           )}
-
-          {/* Settings */}
-          <div ref={settingsRef} className="relative">
-            <button
-              onClick={() => setShowSettings(v => !v)}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-              aria-label="Settings"
-            >
-              <GearIcon />
-            </button>
-            {showSettings && (
-              <div className="absolute right-0 top-10 w-52 bg-white dark:bg-[#1e1e1c] rounded-lg shadow-lg border border-gray-200 dark:border-[#2e2e2c] py-1 z-50">
-                {/* Dark mode toggle */}
-                <button
-                  onClick={() => setDarkMode(v => !v)}
-                  className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a28] cursor-pointer"
-                >
-                  <span>Dark mode</span>
-                  <div className={`relative w-8 h-4 rounded-full transition-colors ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                    <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${darkMode ? 'translate-x-4' : ''}`} />
-                  </div>
-                </button>
-                <div className="border-t border-gray-100 dark:border-[#2e2e2c] my-1" />
-                <button
-                  onClick={clearLayout}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a28] cursor-pointer"
-                >
-                  Clear layout
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </header>
 

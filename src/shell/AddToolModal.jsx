@@ -159,7 +159,9 @@ function ToolRow({ tool, onAdd }) {
       onClick={onAdd}
       className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#2a2a28] transition-colors text-left cursor-pointer group"
     >
-      <span className="text-lg shrink-0">{tool.icon}</span>
+      {tool.icon?.startsWith('/')
+        ? <img src={tool.icon} alt={tool.name} className="w-5 h-5 object-contain shrink-0" />
+        : <span className="text-lg shrink-0">{tool.icon}</span>}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{tool.name}</p>
         <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{tool.description}</p>

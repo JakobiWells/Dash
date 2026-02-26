@@ -1,0 +1,10 @@
+{
+  "id": "desmos",
+  "name": "Desmos",
+  "description": "Interactive graphing calculator — plot functions, equations, and more",
+  "icon": "/logos/desmos.png",
+  "category": "Math",
+  "popular": true,
+  "defaultSize": { "w": 14, "h": 16 },
+  "minSize": { "w": 10, "h": 12 }
+}
