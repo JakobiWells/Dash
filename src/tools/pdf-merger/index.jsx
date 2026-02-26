@@ -9,15 +9,6 @@ function Spinner() {
   )
 }
 
-function download(blob, filename) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
 async function renderFirstPageThumb(fileRaw, thumbWidth = 48) {
   const pdfjs = await import('pdfjs-dist')
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -40,6 +31,8 @@ export default function PdfMerger() {
   const [files, setFiles] = useState([])
   const [dragging, setDragging] = useState(false)
   const [status, setStatus] = useState(null) // 'merging' | 'done' | 'error'
+  const [progress, setProgress] = useState({ current: 0, total: 0 })
+  const [outputBlob, setOutputBlob] = useState(null)
   const [error, setError] = useState(null)
   const inputRef = useRef(null)
   const dropZoneRef = useRef(null)
@@ -48,25 +41,24 @@ export default function PdfMerger() {
     const pdfs = Array.from(incoming).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'))
     if (!pdfs.length) return
     setStatus(null)
+    setOutputBlob(null)
 
     const newEntries = pdfs.map(f => ({
       id: `${f.name}-${Date.now()}-${Math.random()}`,
       name: f.name,
       raw: f,
-      thumb: null, // loads async below
+      thumb: null,
     }))
 
     setFiles(prev => [...prev, ...newEntries])
 
-    // Render first-page thumbnails asynchronously
     newEntries.forEach(entry => {
       renderFirstPageThumb(entry.raw).then(thumb => {
         setFiles(prev => prev.map(f => f.id === entry.id ? { ...f, thumb } : f))
-      }).catch(() => {}) // silently skip if thumb fails
+      }).catch(() => {})
     })
   }, [])
 
-  // Global filedrop CustomEvent from Grid overlay
   useEffect(() => {
     const el = dropZoneRef.current
     if (!el) return
@@ -95,22 +87,27 @@ export default function PdfMerger() {
 
   function remove(id) {
     setFiles(prev => prev.filter(f => f.id !== id))
+    setOutputBlob(null)
+    setStatus(null)
   }
 
   async function handleMerge() {
     if (files.length < 2) return
     setStatus('merging')
+    setOutputBlob(null)
     setError(null)
+    setProgress({ current: 0, total: files.length })
     try {
       const merged = await PDFDocument.create()
-      for (const file of files) {
-        const bytes = await file.raw.arrayBuffer()
+      for (let i = 0; i < files.length; i++) {
+        const bytes = await files[i].raw.arrayBuffer()
         const doc = await PDFDocument.load(bytes)
         const pages = await merged.copyPages(doc, doc.getPageIndices())
         pages.forEach(p => merged.addPage(p))
+        setProgress({ current: i + 1, total: files.length })
       }
       const outBytes = await merged.save()
-      download(new Blob([outBytes], { type: 'application/pdf' }), 'merged.pdf')
+      setOutputBlob(new Blob([outBytes], { type: 'application/pdf' }))
       setStatus('done')
     } catch (err) {
       setError(err.message ?? 'Failed to merge PDFs')
@@ -118,7 +115,18 @@ export default function PdfMerger() {
     }
   }
 
+  function handleDownload() {
+    if (!outputBlob) return
+    const url = URL.createObjectURL(outputBlob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'merged.pdf'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const hasFiles = files.length > 0
+  const pct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0
 
   return (
     <div className="h-full flex flex-col gap-3">
@@ -158,7 +166,6 @@ export default function PdfMerger() {
         <div className="flex-1 flex flex-col gap-1 overflow-y-auto">
           {files.map((file, i) => (
             <div key={file.id} className="flex items-center gap-2.5 px-2 py-2 rounded-lg bg-gray-50 border border-gray-100">
-              {/* Page thumbnail */}
               <div className="shrink-0 w-8 h-10 rounded overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center">
                 {file.thumb ? (
                   <img src={file.thumb} alt="" className="w-full h-full object-cover" draggable={false} />
@@ -199,29 +206,55 @@ export default function PdfMerger() {
         </div>
       )}
 
+      {/* Progress bar */}
+      {status === 'merging' && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between text-xs text-gray-400">
+            <span className="flex items-center gap-1.5"><Spinner />Merging…</span>
+            <span>{progress.current}/{progress.total} files</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gray-800 transition-all duration-300"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {status === 'error' && <p className="text-xs text-red-400 text-center">{error}</p>}
+
+      {/* Helper hint */}
+      {files.length === 1 && !status && (
+        <p className="text-xs text-gray-400 text-center">Add at least one more PDF to merge</p>
+      )}
+
       {/* Actions */}
       <div className="flex items-center gap-2">
         {hasFiles && (
           <span className="text-xs text-gray-400">{files.length} file{files.length !== 1 ? 's' : ''}</span>
         )}
-        <button
-          onClick={handleMerge}
-          disabled={files.length < 2 || status === 'merging'}
-          className="ml-auto px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer
-            disabled:bg-gray-100 disabled:text-gray-300 disabled:cursor-not-allowed
-            bg-gray-900 text-white hover:bg-gray-700"
-        >
-          {status === 'merging'
-            ? <span className="flex items-center gap-1.5"><Spinner />Merging…</span>
-            : 'Merge PDFs'}
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {status === 'done' && outputBlob && (
+            <button
+              onClick={handleDownload}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-500 transition-colors cursor-pointer"
+            >
+              Download
+            </button>
+          )}
+          <button
+            onClick={handleMerge}
+            disabled={files.length < 2 || status === 'merging'}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer
+              disabled:bg-gray-100 disabled:text-gray-300 disabled:cursor-not-allowed
+              bg-gray-900 text-white hover:bg-gray-700"
+          >
+            {status === 'done' ? 'Merge again' : 'Merge PDFs'}
+          </button>
+        </div>
       </div>
-
-      {status === 'done' && <p className="text-xs text-green-500 text-center">Download started!</p>}
-      {status === 'error' && <p className="text-xs text-red-400 text-center">{error}</p>}
-      {files.length === 1 && status !== 'error' && (
-        <p className="text-xs text-gray-400 text-center">Add at least one more PDF to merge</p>
-      )}
     </div>
   )
 }
