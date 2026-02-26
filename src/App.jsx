@@ -18,8 +18,14 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('dashpad-dark') === '1')
   const settingsRef = useRef(null)
   const userMenuRef = useRef(null)
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode)
+    localStorage.setItem('dashpad-dark', darkMode ? '1' : '')
+  }, [darkMode])
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -42,15 +48,15 @@ export default function App() {
   return (
     <div>
       <header
-        className="flex items-center px-6 relative"
-        style={{ height: '64px', backgroundColor: '#f8f8f6' }}
+        className="flex items-center px-6 relative bg-[#f8f8f6] dark:bg-[#111110]"
+        style={{ height: '64px' }}
       >
-        <h1 className="text-xl font-semibold text-gray-800 tracking-tight">Dash</h1>
+        <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 tracking-tight">Dashpad</h1>
 
         {/* Add tool button — centered */}
         <button
           onClick={() => setShowAddModal(true)}
-          className="absolute left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-gray-700 transition-colors cursor-pointer"
+          className="absolute left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 flex items-center justify-center hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors cursor-pointer"
           aria-label="Add tool"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -66,17 +72,17 @@ export default function App() {
               <div ref={userMenuRef} className="relative">
                 <button
                   onClick={() => setShowUserMenu(v => !v)}
-                  className="w-8 h-8 rounded-full bg-gray-900 text-white text-xs font-semibold flex items-center justify-center hover:bg-gray-700 transition-colors cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-semibold flex items-center justify-center hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors cursor-pointer"
                   aria-label="Account"
                 >
                   {initials}
                 </button>
                 {showUserMenu && (
-                  <div className="absolute right-0 top-10 w-52 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
-                    <p className="px-4 py-2 text-xs text-gray-400 truncate border-b border-gray-100">{user.email}</p>
+                  <div className="absolute right-0 top-10 w-52 bg-white dark:bg-[#1e1e1c] rounded-xl shadow-lg border border-gray-200 dark:border-[#2e2e2c] py-1 z-50">
+                    <p className="px-4 py-2 text-xs text-gray-400 dark:text-gray-500 truncate border-b border-gray-100 dark:border-[#2e2e2c]">{user.email}</p>
                     <button
                       onClick={() => { signOut(); setShowUserMenu(false) }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a28] cursor-pointer"
                     >
                       Sign out
                     </button>
@@ -86,7 +92,7 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setShowAuthModal(true)}
-                className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-200 transition-colors cursor-pointer"
+                className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer"
               >
                 Sign in
               </button>
@@ -97,16 +103,27 @@ export default function App() {
           <div ref={settingsRef} className="relative">
             <button
               onClick={() => setShowSettings(v => !v)}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-200 transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer"
               aria-label="Settings"
             >
               <GearIcon />
             </button>
             {showSettings && (
-              <div className="absolute right-0 top-10 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+              <div className="absolute right-0 top-10 w-52 bg-white dark:bg-[#1e1e1c] rounded-lg shadow-lg border border-gray-200 dark:border-[#2e2e2c] py-1 z-50">
+                {/* Dark mode toggle */}
+                <button
+                  onClick={() => setDarkMode(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a28] cursor-pointer"
+                >
+                  <span>Dark mode</span>
+                  <div className={`relative w-8 h-4 rounded-full transition-colors ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                    <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${darkMode ? 'translate-x-4' : ''}`} />
+                  </div>
+                </button>
+                <div className="border-t border-gray-100 dark:border-[#2e2e2c] my-1" />
                 <button
                   onClick={clearLayout}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a28] cursor-pointer"
                 >
                   Clear layout
                 </button>

@@ -68,12 +68,12 @@ export default function AddToolModal({ tools, onAdd, onClose }) {
   return (
     <div
       ref={panelRef}
-      className="fixed z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden"
+      className="fixed z-50 bg-white dark:bg-[#1e1e1c] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#2e2e2c] flex flex-col overflow-hidden"
       style={{ top: 72, left: '50%', transform: 'translateX(-50%)', width: 340, maxHeight: 480 }}
     >
       {/* Search bar */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 shrink-0">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 shrink-0">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-[#2e2e2c] shrink-0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 dark:text-gray-600 shrink-0">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
         <input
@@ -82,10 +82,10 @@ export default function AddToolModal({ tools, onAdd, onClose }) {
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Search tools…"
-          className="flex-1 text-sm text-gray-700 bg-transparent focus:outline-none placeholder-gray-300"
+          className="flex-1 text-sm text-gray-700 dark:text-gray-200 bg-transparent focus:outline-none placeholder-gray-300 dark:placeholder-gray-600"
         />
         {query && (
-          <button onClick={() => setQuery('')} className="text-gray-300 hover:text-gray-500 cursor-pointer shrink-0">
+          <button onClick={() => setQuery('')} className="text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 cursor-pointer shrink-0">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
@@ -95,12 +95,12 @@ export default function AddToolModal({ tools, onAdd, onClose }) {
 
       {/* Category pills — hidden while searching */}
       {!filtered && categoryPills.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-4 py-2.5 border-b border-gray-100 shrink-0">
+        <div className="flex flex-wrap gap-1.5 px-4 py-2.5 border-b border-gray-100 dark:border-[#2e2e2c] shrink-0">
           {categoryPills.map(cat => (
             <button
               key={cat}
               onClick={() => scrollToSection(cat)}
-              className="px-2.5 py-1 rounded-full text-xs text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded-full text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-[#2a2a28] hover:bg-gray-200 dark:hover:bg-[#333331] transition-colors cursor-pointer"
             >
               {cat}
             </button>
@@ -109,11 +109,12 @@ export default function AddToolModal({ tools, onAdd, onClose }) {
       )}
 
       {/* Scrollable list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
+      <div className="flex-1 overflow-y-auto hide-scrollbar">
         {filtered ? (
           // Search results — flat list
           filtered.length === 0 ? (
-            <p className="px-4 py-8 text-sm text-gray-400 text-center">No tools match your search.</p>
+            <p className="px-4 py-8 text-sm text-gray-400 dark:text-gray-500 text-center">No tools match your search.</p>
           ) : (
             filtered.map(tool => (
               <ToolRow key={tool.id} tool={tool} onAdd={() => onAdd(tool.id)} />
@@ -122,7 +123,7 @@ export default function AddToolModal({ tools, onAdd, onClose }) {
         ) : (
           // Grouped sections
           tools.length === 0 ? (
-            <p className="px-4 py-8 text-sm text-gray-400 text-center">All tools are on the board.</p>
+            <p className="px-4 py-8 text-sm text-gray-400 dark:text-gray-500 text-center">All tools are on the board.</p>
           ) : (
             sections.map(section => (
               <div key={section.label} ref={el => { sectionRefs.current[section.label] = el }}>
@@ -133,7 +134,7 @@ export default function AddToolModal({ tools, onAdd, onClose }) {
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                     </svg>
                   )}
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                  <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     {section.label}
                   </span>
                 </div>
@@ -145,6 +146,9 @@ export default function AddToolModal({ tools, onAdd, onClose }) {
           )
         )}
       </div>
+        {/* Fade indicator — hints there's more content below */}
+        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white dark:from-[#1e1e1c] to-transparent pointer-events-none" />
+      </div>
     </div>
   )
 }
@@ -153,14 +157,14 @@ function ToolRow({ tool, onAdd }) {
   return (
     <button
       onClick={onAdd}
-      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left cursor-pointer group"
+      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#2a2a28] transition-colors text-left cursor-pointer group"
     >
       <span className="text-lg shrink-0">{tool.icon}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-800">{tool.name}</p>
-        <p className="text-xs text-gray-400 truncate">{tool.description}</p>
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{tool.name}</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{tool.description}</p>
       </div>
-      <span className="text-xs text-gray-300 group-hover:text-gray-500 transition-colors shrink-0">Add</span>
+      <span className="text-xs text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors shrink-0">Add</span>
     </button>
   )
 }

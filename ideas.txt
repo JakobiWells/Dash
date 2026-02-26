@@ -81,7 +81,7 @@ as helping me pay for school and my family.
 
 
 
-Potential Tools
+Potential Tools ------------
 Relevant Article Finder
 Stem Splitter
 Sound Board Sounds
@@ -89,9 +89,18 @@ Emoji Copy Table
 JSON formatter
 CSS Gradient Generator
 
+asdfasdf
 
-
-
+asdf
 Premium Tools(AI)
+
+
+File Convert-:
+need to finish functionality,  / support more file types
+UI also needs improved
+Would a figma wireframe help you?
+
+
+
 
 
