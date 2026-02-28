@@ -54,6 +54,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [zoom, setZoom] = useState(1)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('dashpad-dark') === '1')
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('dashpad-api-key') ?? '')
   const [showKey, setShowKey] = useState(false)
@@ -73,6 +74,35 @@ export default function App() {
     document.documentElement.classList.toggle('dark', darkMode)
     localStorage.setItem('dashpad-dark', darkMode ? '1' : '')
   }, [darkMode])
+
+  useEffect(() => {
+    function handleWheel(e) {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      setZoom(z => Math.min(2, Math.max(0.4, +(z - e.deltaY * 0.005).toFixed(2))))
+    }
+    function handleKeyDown(e) {
+      if (!(e.metaKey || e.ctrlKey)) return
+      const tag = e.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault()
+        setZoom(z => Math.min(2, +(z + 0.1).toFixed(2)))
+      } else if (e.key === '-') {
+        e.preventDefault()
+        setZoom(z => Math.max(0.4, +(z - 0.1).toFixed(2)))
+      } else if (e.key === '0') {
+        e.preventDefault()
+        setZoom(1)
+      }
+    }
+    window.addEventListener('wheel', handleWheel, { passive: false })
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -260,7 +290,6 @@ export default function App() {
                     <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${darkMode ? 'translate-x-4' : ''}`} />
                   </div>
                 </button>
-                <div className="border-t border-gray-100 dark:border-[#2e2e2c] my-1" />
                 <button
                   onClick={clearLayout}
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a28] cursor-pointer"
@@ -329,8 +358,17 @@ export default function App() {
         </div>
       </header>
 
-      <main>
-        <Grid ref={gridRef} showAddModal={showAddModal} setShowAddModal={setShowAddModal} />
+      <main className="overflow-x-hidden">
+        <div
+          style={{
+            transform: `scale(${zoom})`,
+            transformOrigin: 'top left',
+            width: `${(100 / zoom).toFixed(4)}%`,
+            minHeight: `calc((100vh - 64px) / ${zoom})`,
+          }}
+        >
+          <Grid ref={gridRef} zoom={zoom} showAddModal={showAddModal} setShowAddModal={setShowAddModal} />
+        </div>
       </main>
 
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}

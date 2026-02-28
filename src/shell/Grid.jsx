@@ -67,7 +67,7 @@ function saveActiveIds(ids) {
 
 const PAD = CELL
 
-const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal }, ref) {
+const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1 }, ref) {
   const { user, loading } = useAuth()
   const containerRef = useRef(null)
   const [containerWidth, setContainerWidth] = useState(
@@ -204,10 +204,9 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal }, ref) {
     if (!container) return
     const rect = container.getBoundingClientRect()
 
-    // rect.top and e.clientY are both viewport-relative, so this is correct
-    // even when the page is scrolled. No clamping — the grid auto-expands.
-    const dropX = Math.max(0, Math.floor((e.clientX - rect.left - PAD) / CELL))
-    const dropY = Math.max(0, Math.floor((e.clientY - rect.top  - PAD) / CELL))
+    // rect is in visual (post-transform) pixels; divide by scaled cell size
+    const dropX = Math.max(0, Math.floor((e.clientX - rect.left - PAD * zoom) / (CELL * zoom)))
+    const dropY = Math.max(0, Math.floor((e.clientY - rect.top  - PAD * zoom) / (CELL * zoom)))
     const now = Date.now()
 
     const newFileItems = files.map((file, i) => ({
@@ -276,6 +275,7 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal }, ref) {
           compactType={null}
           preventCollision={true}
           useCSSTransforms={false}
+          transformScale={zoom}
           resizableOpts={{ grid: [CELL, CELL] }}
         >
           {showWelcome && (
