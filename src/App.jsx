@@ -360,6 +360,7 @@ export default function App() {
 
       <main className="overflow-x-hidden">
         <div
+          className="grid-bg"
           style={{
             transform: `scale(${zoom})`,
             transformOrigin: 'top left',
