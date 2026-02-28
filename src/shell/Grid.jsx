@@ -6,6 +6,7 @@ import FileCard from './FileCard'
 import WelcomeCard from './WelcomeCard'
 import AddToolModal from './AddToolModal'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 
 // Must match background-size in index.css
 const CELL = 32
@@ -86,7 +87,6 @@ export default function Grid({ showAddModal, setShowAddModal, zoom = 1 }) {
 
   const cols = containerWidth / CELL
 
-
   const [activeIds, setActiveIds] = useState(() => {
     const saved = loadActiveIds()
     if (saved !== null) return saved
@@ -104,6 +104,85 @@ export default function Grid({ showAddModal, setShowAddModal, zoom = 1 }) {
   })
 
   const [fileItems, setFileItems] = useState([])
+
+  // { cloudLayout, cloudActiveIds } — shown when sign-in detects both local + cloud data
+  const [syncConflict, setSyncConflict] = useState(null)
+
+  // Apply cloud data into state and localStorage
+  const applyCloudData = useCallback((cloudLayout, cloudActiveIds) => {
+    setLayout(cloudLayout)
+    setActiveIds(cloudActiveIds)
+    saveSaved(cloudLayout)
+    saveActiveIds(cloudActiveIds)
+  }, [])
+
+  // Fetch cloud layout; if checkConflict=true and both local+cloud exist, show prompt
+  const loadFromCloud = useCallback(async (userId, checkConflict) => {
+    const { data } = await supabase
+      .from('user_layouts')
+      .select('layout, active_ids')
+      .eq('user_id', userId)
+      .single()
+
+    if (!data) {
+      // No cloud layout yet — upload local data as starting point
+      const localLayout = loadSaved() ?? []
+      const localActiveIds = loadActiveIds() ?? []
+      await supabase.from('user_layouts').upsert({
+        user_id: userId,
+        layout: localLayout,
+        active_ids: localActiveIds,
+        updated_at: new Date().toISOString(),
+      })
+      return
+    }
+
+    if (checkConflict) {
+      const localLayout = loadSaved()
+      const localActiveIds = loadActiveIds()
+      const hasLocal = (localLayout?.length > 0) || (localActiveIds?.length > 0)
+      if (hasLocal) {
+        setSyncConflict({ cloudLayout: data.layout, cloudActiveIds: data.active_ids })
+        return
+      }
+    }
+
+    applyCloudData(data.layout, data.active_ids)
+  }, [applyCloudData])
+
+  // Detect sign-in / initial page load to trigger cloud sync
+  const prevUserIdRef = useRef(undefined) // undefined = auth not yet resolved
+  useEffect(() => {
+    if (loading) return
+
+    const prevId = prevUserIdRef.current
+    prevUserIdRef.current = user?.id ?? null
+
+    if (!user) return
+
+    if (prevId === undefined) {
+      // Page load while already signed in — cloud wins, no prompt
+      loadFromCloud(user.id, false)
+    } else if (prevId === null) {
+      // Just signed in during this session — check for conflict
+      loadFromCloud(user.id, true)
+    }
+  }, [user, loading, loadFromCloud])
+
+  // Debounced cloud sync whenever layout or activeIds change (signed-in only)
+  useEffect(() => {
+    if (!user) return
+    const toolsOnly = layout.filter(item => !item.i.startsWith('file__') && !item.i.startsWith('welcome__'))
+    const timer = setTimeout(() => {
+      supabase.from('user_layouts').upsert({
+        user_id: user.id,
+        layout: toolsOnly,
+        active_ids: activeIds,
+        updated_at: new Date().toISOString(),
+      })
+    }, 2000)
+    return () => clearTimeout(timer)
+  }, [layout, activeIds, user])
 
   // Add or remove welcome card from layout whenever showWelcome changes
   useEffect(() => {
@@ -235,6 +314,45 @@ export default function Grid({ showAddModal, setShowAddModal, zoom = 1 }) {
 
   return (
     <>
+      {/* Conflict prompt — shown when sign-in detects both local and cloud layouts */}
+      {syncConflict && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30">
+          <div className="bg-white dark:bg-[#1e1e1c] rounded-xl shadow-xl border border-gray-200 dark:border-[#2e2e2c] p-6 max-w-sm mx-4">
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">Layout conflict</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              You have a local layout and a saved cloud layout. Which would you like to use?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  applyCloudData(syncConflict.cloudLayout, syncConflict.cloudActiveIds)
+                  setSyncConflict(null)
+                }}
+                className="flex-1 px-3 py-2 rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors cursor-pointer"
+              >
+                Use cloud
+              </button>
+              <button
+                onClick={async () => {
+                  const localLayout = loadSaved() ?? []
+                  const localActiveIds = loadActiveIds() ?? []
+                  await supabase.from('user_layouts').upsert({
+                    user_id: user.id,
+                    layout: localLayout,
+                    active_ids: localActiveIds,
+                    updated_at: new Date().toISOString(),
+                  })
+                  setSyncConflict(null)
+                }}
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-[#2e2e2c] text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-[#2a2a28] transition-colors cursor-pointer"
+              >
+                Keep local
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {fileDragActive && (
         <div
           className="fixed inset-0 z-[9999]"
