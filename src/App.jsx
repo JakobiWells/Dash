@@ -1,7 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 import Grid from './shell/Grid'
 import AuthModal from './components/AuthModal'
+import LayoutSwitcher from './shell/LayoutSwitcher'
 import { useAuth } from './context/AuthContext'
+import {
+  fetchLayouts,
+  upsertLayout,
+  deleteLayout,
+  loadLayoutById,
+  FREE_LAYOUT_LIMIT,
+} from './store/layout'
 
 function GearIcon() {
   return (
@@ -12,8 +20,36 @@ function GearIcon() {
   )
 }
 
+function SaveIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+      <polyline points="17 21 17 13 7 13 7 21"/>
+      <polyline points="7 3 7 8 15 8"/>
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  )
+}
+
+function MiniSpinner() {
+  return (
+    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M12 2a10 10 0 1 0 10 10"/>
+    </svg>
+  )
+}
+
 export default function App() {
   const { user, signOut, loading } = useAuth()
+  const gridRef = useRef(null)
+
   const [showAddModal, setShowAddModal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
@@ -21,6 +57,15 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('dashpad-dark') === '1')
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('dashpad-api-key') ?? '')
   const [showKey, setShowKey] = useState(false)
+
+  // Cloud layout state
+  const [savedLayouts, setSavedLayouts] = useState([])
+  const [activeLayoutId, setActiveLayoutId] = useState(
+    () => localStorage.getItem('dashpad-active-layout-id') ?? null
+  )
+  const [saving, setSaving] = useState(false)
+  const [savedTick, setSavedTick] = useState(false)
+
   const settingsRef = useRef(null)
   const userMenuRef = useRef(null)
 
@@ -38,6 +83,14 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showSettings, showUserMenu])
 
+  // Fetch cloud layouts when user signs in
+  useEffect(() => {
+    if (!user) { setSavedLayouts([]); return }
+    fetchLayouts()
+      .then(data => setSavedLayouts(data ?? []))
+      .catch(console.error)
+  }, [user])
+
   function clearLayout() {
     localStorage.setItem('toolbox-layout-v3', '[]')
     localStorage.setItem('toolbox-active-ids-v3', '[]')
@@ -45,7 +98,83 @@ export default function App() {
     window.location.reload()
   }
 
+  // Save current grid state to cloud
+  async function handleSave() {
+    if (!user || !gridRef.current) return
+    setSaving(true)
+    try {
+      const state = gridRef.current.getState()
+      const name = savedLayouts.find(l => l.id === activeLayoutId)?.name ?? 'Default'
+      const data = await upsertLayout(activeLayoutId, name, state)
+      if (data?.[0]?.id) {
+        const newId = data[0].id
+        setActiveLayoutId(newId)
+        localStorage.setItem('dashpad-active-layout-id', newId)
+        setSavedLayouts(prev => {
+          const exists = prev.find(l => l.id === newId)
+          return exists
+            ? prev.map(l => l.id === newId ? { ...l, name } : l)
+            : [...prev, { id: newId, name }]
+        })
+      }
+      setSavedTick(true)
+      setTimeout(() => setSavedTick(false), 2000)
+    } catch (e) {
+      console.error('Save failed:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Load a saved layout into the grid
+  async function handleLoadLayout(layoutId) {
+    try {
+      const layoutData = await loadLayoutById(layoutId)
+      if (layoutData && gridRef.current) {
+        gridRef.current.loadState(layoutData)
+        setActiveLayoutId(layoutId)
+        localStorage.setItem('dashpad-active-layout-id', layoutId)
+      }
+    } catch (e) {
+      console.error('Load failed:', e)
+    }
+  }
+
+  // Save current state as a new named layout
+  async function handleSaveAs(name) {
+    if (!user || !gridRef.current) return
+    try {
+      const state = gridRef.current.getState()
+      const data = await upsertLayout(null, name, state)
+      if (data?.[0]?.id) {
+        const newId = data[0].id
+        setActiveLayoutId(newId)
+        localStorage.setItem('dashpad-active-layout-id', newId)
+        setSavedLayouts(prev => [...prev, { id: newId, name }])
+      }
+    } catch (e) {
+      console.error('Save as failed:', e)
+    }
+  }
+
+  // Delete a saved layout
+  async function handleDeleteLayout(layoutId) {
+    try {
+      await deleteLayout(layoutId)
+      const remaining = savedLayouts.filter(l => l.id !== layoutId)
+      setSavedLayouts(remaining)
+      if (activeLayoutId === layoutId) {
+        const newActive = remaining[0]?.id ?? null
+        setActiveLayoutId(newActive)
+        localStorage.setItem('dashpad-active-layout-id', newActive ?? '')
+      }
+    } catch (e) {
+      console.error('Delete failed:', e)
+    }
+  }
+
   const initials = user?.email?.[0]?.toUpperCase() ?? '?'
+  const canSave = !!user && !saving
 
   return (
     <div>
@@ -55,16 +184,30 @@ export default function App() {
       >
         <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 tracking-tight">Dashpad</h1>
 
-        {/* Add tool button — centered */}
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="absolute left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 flex items-center justify-center hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors cursor-pointer"
-          aria-label="Add tool"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-        </button>
+        {/* Center: layout switcher + add tool */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+          {/* Layout switcher — only visible when signed in and has at least one saved layout */}
+          {user && savedLayouts.length > 0 && (
+            <LayoutSwitcher
+              savedLayouts={savedLayouts}
+              activeLayoutId={activeLayoutId}
+              onLoad={handleLoadLayout}
+              onSaveAs={handleSaveAs}
+              onDelete={handleDeleteLayout}
+            />
+          )}
+
+          {/* Add tool button */}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="w-8 h-8 rounded-full bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 flex items-center justify-center hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors cursor-pointer"
+            aria-label="Add tool"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
 
         <div className="ml-auto flex items-center gap-2">
 
@@ -80,6 +223,21 @@ export default function App() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
+          </button>
+
+          {/* Save layout button */}
+          <button
+            onClick={handleSave}
+            disabled={!canSave}
+            title={!user ? 'Sign in to save your layout' : 'Save layout to cloud'}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+              !user
+                ? 'text-gray-300 dark:text-gray-700 cursor-not-allowed'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-800 cursor-pointer'
+            }`}
+            aria-label="Save layout"
+          >
+            {saving ? <MiniSpinner /> : savedTick ? <CheckIcon /> : <SaveIcon />}
           </button>
 
           {/* Settings */}
@@ -172,7 +330,7 @@ export default function App() {
       </header>
 
       <main>
-        <Grid showAddModal={showAddModal} setShowAddModal={setShowAddModal} />
+        <Grid ref={gridRef} showAddModal={showAddModal} setShowAddModal={setShowAddModal} />
       </main>
 
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}

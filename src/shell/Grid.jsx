@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import GridLayout from 'react-grid-layout'
 import { getTools, getComponent } from '../registry'
 import ToolCard from '../components/ToolCard'
@@ -67,7 +67,7 @@ function saveActiveIds(ids) {
 
 const PAD = CELL
 
-export default function Grid({ showAddModal, setShowAddModal }) {
+const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal }, ref) {
   const { user, loading } = useAuth()
   const containerRef = useRef(null)
   const [containerWidth, setContainerWidth] = useState(
@@ -103,6 +103,22 @@ export default function Grid({ showAddModal, setShowAddModal }) {
   })
 
   const [fileItems, setFileItems] = useState([])
+
+  // Expose getState / loadState to parent (App.jsx) via ref for cloud save/load
+  useImperativeHandle(ref, () => ({
+    getState() {
+      const toolsOnly = layout.filter(
+        item => !item.i.startsWith('file__') && !item.i.startsWith('welcome__')
+      )
+      return { layout: toolsOnly, activeIds }
+    },
+    loadState({ layout: newLayout, activeIds: newIds }) {
+      setLayout(newLayout)
+      setActiveIds(newIds)
+      saveSaved(newLayout)
+      saveActiveIds(newIds)
+    },
+  }), [layout, activeIds])
 
   // Add or remove welcome card from layout whenever showWelcome changes
   useEffect(() => {
@@ -297,4 +313,6 @@ export default function Grid({ showAddModal, setShowAddModal }) {
       )}
     </>
   )
-}
+})
+
+export default Grid
