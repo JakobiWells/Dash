@@ -171,6 +171,14 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1 
     setShowAddModal(false)
   }, [setShowAddModal])
 
+  // Allow any tool to programmatically add a new card via:
+  //   window.dispatchEvent(new CustomEvent('dash:add-tool', { detail: { toolId } }))
+  useEffect(() => {
+    const handler = (e) => addTool(e.detail.toolId)
+    window.addEventListener('dash:add-tool', handler)
+    return () => window.removeEventListener('dash:add-tool', handler)
+  }, [addTool])
+
   const removeFileItem = useCallback((id) => {
     setFileItems((prev) => {
       const item = prev.find((f) => f.id === id)

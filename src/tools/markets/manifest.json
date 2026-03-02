@@ -1,0 +1,10 @@
+{
+  "id": "markets",
+  "name": "Markets",
+  "description": "Watchlist with live prices, % change, and sparklines for stocks, indices, and crypto",
+  "icon": "📈",
+  "category": "Finance",
+  "popular": false,
+  "defaultSize": { "w": 14, "h": 14 },
+  "minSize": { "w": 9, "h": 7 }
+}
