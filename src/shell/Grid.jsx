@@ -299,7 +299,7 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1 
             return (
               <div key={instanceId}>
                 <ToolCard tool={tool} onRemove={() => removeTool(instanceId)}>
-                  {Component && <Component />}
+                  {Component && <Component instanceId={instanceId} />}
                 </ToolCard>
               </div>
             )

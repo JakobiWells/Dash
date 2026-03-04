@@ -1,0 +1,10 @@
+{
+  "id": "quick-links",
+  "name": "Quick Links",
+  "description": "Save and launch your most-used websites in one click",
+  "icon": "🔗",
+  "category": "Productivity",
+  "popular": true,
+  "defaultSize": { "w": 8, "h": 9 },
+  "minSize": { "w": 5, "h": 5 }
+}

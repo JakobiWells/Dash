@@ -1,0 +1,10 @@
+{
+  "id": "todo",
+  "name": "To-Do",
+  "description": "A clean canvas checklist — add tasks, check them off, drag to reorder",
+  "icon": "✅",
+  "category": "Productivity",
+  "popular": true,
+  "defaultSize": { "w": 10, "h": 12 },
+  "minSize": { "w": 6, "h": 6 }
+}

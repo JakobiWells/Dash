@@ -69,7 +69,7 @@ export default function AddToolModal({ tools, onAdd, onClose }) {
     <div
       ref={panelRef}
       className="fixed z-50 bg-white dark:bg-[#1e1e1c] rounded-2xl shadow-2xl border border-gray-100 dark:border-[#2e2e2c] flex flex-col overflow-hidden"
-      style={{ top: 72, left: '50%', transform: 'translateX(-50%)', width: 340, maxHeight: 480 }}
+      style={{ top: 72, left: '50%', transform: 'translateX(-50%)', width: 520, maxHeight: 600 }}
     >
       {/* Search bar */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-[#2e2e2c] shrink-0">
