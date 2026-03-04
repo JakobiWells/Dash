@@ -298,7 +298,7 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1 
             const Component = getComponent(toolId)
             return (
               <div key={instanceId}>
-                <ToolCard tool={tool} onRemove={() => removeTool(instanceId)}>
+                <ToolCard tool={tool} instanceId={instanceId} onRemove={() => removeTool(instanceId)}>
                   {Component && <Component instanceId={instanceId} />}
                 </ToolCard>
               </div>
