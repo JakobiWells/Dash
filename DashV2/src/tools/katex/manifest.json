@@ -1,0 +1,10 @@
+{
+  "id": "katex",
+  "name": "LaTeX Editor",
+  "description": "Write and preview LaTeX math equations in real time",
+  "icon": "∑",
+  "category": "Math",
+  "popular": false,
+  "defaultSize": { "w": 11, "h": 14 },
+  "minSize": { "w": 8, "h": 10 }
+}

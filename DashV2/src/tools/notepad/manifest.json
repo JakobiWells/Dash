@@ -1,0 +1,10 @@
+{
+  "id": "notepad",
+  "name": "Notepad",
+  "description": "Quick notes that save automatically",
+  "icon": "📝",
+  "category": "Productivity",
+  "popular": true,
+  "defaultSize": { "w": 8, "h": 10 },
+  "minSize": { "w": 4, "h": 4 }
+}

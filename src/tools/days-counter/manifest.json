@@ -1,9 +1,0 @@
-{
-  "id": "days-counter",
-  "name": "Days Counter",
-  "description": "Track days until or since any date",
-  "icon": "📅",
-  "category": "Productivity",
-  "defaultSize": { "w": 9, "h": 14 },
-  "minSize": { "w": 7, "h": 8 }
-}

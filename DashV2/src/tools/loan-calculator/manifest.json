@@ -1,0 +1,9 @@
+{
+  "id": "loan-calculator",
+  "name": "Loan Calculator",
+  "description": "Calculate monthly payments, total payment, and interest for a loan",
+  "icon": "🏦",
+  "category": "Finance",
+  "defaultSize": { "w": 8, "h": 6 },
+  "minSize": { "w": 6, "h": 5 }
+}

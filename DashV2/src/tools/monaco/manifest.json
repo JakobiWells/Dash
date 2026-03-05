@@ -1,0 +1,10 @@
+{
+  "id": "monaco",
+  "name": "Code Editor",
+  "description": "VS Code's Monaco editor — syntax highlighting for 50+ languages",
+  "icon": "💻",
+  "category": "Developer",
+  "popular": false,
+  "defaultSize": { "w": 14, "h": 14 },
+  "minSize": { "w": 8, "h": 8 }
+}

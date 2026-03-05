@@ -1,9 +1,0 @@
-{
-  "id": "random-number-generator",
-  "name": "Random Number Generator",
-  "description": "Generate random numbers within a range",
-  "icon": "🎲",
-  "category": "Math",
-  "defaultSize": { "w": 18, "h": 6 },
-  "minSize": { "w": 6, "h": 5 }
-}

@@ -1,8 +1,0 @@
-{
-  "id": "translator",
-  "name": "Translator",
-  "icon": "🌐",
-  "description": "Translate text between 25+ languages. Powered by MyMemory.",
-  "defaultSize": { "w": 14, "h": 15 },
-  "minSize": { "w": 10, "h": 11 }
-}

@@ -1,0 +1,9 @@
+{
+  "id": "media-downloader",
+  "name": "Media Downloader",
+  "description": "Download audio or video from YouTube, SoundCloud, TikTok, Instagram, Twitter/X, Vimeo, and more",
+  "icon": "⬇️",
+  "category": "Files",
+  "defaultSize": { "w": 8, "h": 10 },
+  "minSize": { "w": 6, "h": 9 }
+}

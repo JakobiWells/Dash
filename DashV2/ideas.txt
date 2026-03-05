@@ -1,0 +1,106 @@
+YouTube Video: How much does the domain name matter?
+Good promotional video
+
+dash.tech vs myowndashboard.com
+
+YouTube Video: 
+I combined all the online tools on a single platform
+
+
+
+Welcome Page
+
+Title Card:
+
+
+Welcome to Dash.
+
+Dash is a digital toolbox catered to you. Dash has no ads and protects your privacy.
+Get started with the tool on the right or press the plus button to try more tools.
+
+Tools can be moved around, resized, and closed as needed. 
+
+
+Sign in to save your dash board for next time. 
+
+
+
+Sign in page. 
+
+Creating an account allows you to access your dash anywhere at anytime.
+
+Dash does not require any personal information. While dash will not contain any 
+sensitive data, it is still recommended to use a secure unique password. 
+
+How your login is protected.
+
+
+
+SEO Manipulation: 
+Main dash.tech(domain tbd) website
+Many other websites with a single tool loaded on. For example Someone googles
+file merger
+dash.tech/file-merger shows a page with welcome card and file-merger tool already on the dash.
+citation generator
+dash.tech/citation-generator
+ect.
+basically psuedo pages for SEO. 
+
+Additionally, some pages dedicated to providing guides for users about general
+internet practices. Such as data protection, password management, ect. Guides 
+that while not related to the main product help get people in the door. 
+
+
+
+Subscription Page:
+Still need help figuring out how to market this. 
+Some ideas:
+Freemium model that provides basic tools
+with premium model allowing full tool access.
+Potentially premium model that allows users to export tools as mac/windows widgets.
+Potentially premium model that lets users build custom tools with AI
+Still not sure.
+
+But heres the text on screen.
+
+Hello my name is Jakobi. I am the solo developer of dash. I appreciate you 
+using my service. 
+
+I hate subscriptions and part of me wishes I could offer one time purchases for users.
+Unfortunately, the nature of this app and the modern internet makes this difficult.
+Many of the dash tools require access to databases or apis which charge on a per use basis.
+Similarly, hosting this platform is a recurring cost. 
+
+By paying for a subcription, you are covering the cost of these services as well 
+as helping me pay for school and my family.
+
+
+
+
+
+
+
+
+Potential Tools ------------
+Relevant Article Finder
+Stem Splitter
+Sound Board Sounds
+Emoji Copy Table
+JSON formatter
+CSS Gradient Generator
+
+asdfasdf
+
+asdf
+Premium Tools(AI)
+
+
+File Convert-:
+need to finish functionality,  / support more file types
+UI also needs improved
+Would a figma wireframe help you?
+
+
+
+
+
