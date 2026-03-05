@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const COBALT_API = 'https://api.cobalt.tools/'
+const COBALT_API = 'https://dash-production-3e07.up.railway.app/api/media/download'
 
 const AUDIO_FORMATS = ['mp3', 'ogg', 'wav', 'opus', 'best']
 const VIDEO_QUALITIES = ['max', '1080', '720', '480', '360']
