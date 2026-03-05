@@ -5,8 +5,7 @@ from pydantic import BaseModel
 import yt_dlp
 import os
 import re
-import shutil
-import tempfile
+import subprocess
 
 app = FastAPI()
 
@@ -40,67 +39,75 @@ def health():
 
 @app.post("/download")
 def download(req: DownloadRequest):
-    tmpdir = tempfile.mkdtemp()
+    if req.audio_only:
+        fmt = "bestaudio/best"
+    elif req.quality in ("best", "max"):
+        fmt = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+    else:
+        fmt = f"bestvideo[height<={req.quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={req.quality}][ext=mp4]/best"
+
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "format": fmt,
+        "skip_download": True,
+    }
+    if os.environ.get("PROXY_URL"):
+        ydl_opts["proxy"] = os.environ["PROXY_URL"]
+
     try:
-        if req.audio_only:
-            fmt = "bestaudio/best"
-            if req.audio_format == "best":
-                postprocessors = []
-                out_ext = None  # determined after download
-            else:
-                postprocessors = [{"key": "FFmpegExtractAudio", "preferredcodec": req.audio_format}]
-                out_ext = req.audio_format
-            mime = AUDIO_MIME.get(req.audio_format, "audio/mpeg")
-        else:
-            if req.quality in ("best", "max"):
-                fmt = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
-            else:
-                fmt = f"bestvideo[height<={req.quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={req.quality}][ext=mp4]/best"
-            postprocessors = []
-            out_ext = "mp4"
-            mime = "video/mp4"
-
-        ydl_opts = {
-            "quiet": True,
-            "format": fmt,
-            "outtmpl": f"{tmpdir}/%(title)s.%(ext)s",
-            "postprocessors": postprocessors,
-        }
-
-        proxy = os.environ.get("PROXY_URL")
-        if proxy:
-            ydl_opts["proxy"] = proxy
-
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(req.url, download=True)
+            info = ydl.extract_info(req.url, download=False)
             if "entries" in info:
                 info = info["entries"][0]
-            base = os.path.splitext(ydl.prepare_filename(info))[0]
-            if out_ext:
-                filepath = f"{base}.{out_ext}"
-            else:
-                # "best" format — find whatever file was written
-                filepath = ydl.prepare_filename(info)
-                out_ext = info.get("ext", "mp4")
-                mime = AUDIO_MIME.get(out_ext, "audio/mpeg") if req.audio_only else "video/mp4"
             title = info.get("title", "download")
 
         safe_title = re.sub(r'[^\w\s.-]', '_', title)[:200]
 
-        def iterfile():
-            with open(filepath, "rb") as f:
-                yield from f
-            shutil.rmtree(tmpdir, ignore_errors=True)
+        if req.audio_only:
+            codec = req.audio_format if req.audio_format != "best" else "mp3"
+            mime = AUDIO_MIME.get(codec, "audio/mpeg")
+            source_url = info.get("url")
+            cmd = ["ffmpeg", "-i", source_url, "-vn", "-f", codec, "-"]
+        else:
+            mime = "video/mp4"
+            codec = "mp4"
+            # Handle separate video+audio adaptive streams
+            requested = info.get("requested_formats")
+            if requested and len(requested) >= 2:
+                cmd = [
+                    "ffmpeg",
+                    "-i", requested[0]["url"],
+                    "-i", requested[1]["url"],
+                    "-c", "copy", "-f", "mp4",
+                    "-movflags", "frag_keyframe+empty_moov", "-",
+                ]
+            else:
+                cmd = [
+                    "ffmpeg", "-i", info.get("url"),
+                    "-c", "copy", "-f", "mp4",
+                    "-movflags", "frag_keyframe+empty_moov", "-",
+                ]
+
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+        def generate():
+            try:
+                while chunk := proc.stdout.read(65536):
+                    yield chunk
+            finally:
+                proc.kill()
+                proc.wait()
 
         return StreamingResponse(
-            iterfile(),
+            generate(),
             media_type=mime,
-            headers={"Content-Disposition": f'attachment; filename="{safe_title}.{out_ext}"'},
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}.{codec}"'},
         )
 
+    except HTTPException:
+        raise
     except yt_dlp.utils.DownloadError as e:
-        shutil.rmtree(tmpdir, ignore_errors=True)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        shutil.rmtree(tmpdir, ignore_errors=True)
         raise HTTPException(status_code=500, detail=str(e))
