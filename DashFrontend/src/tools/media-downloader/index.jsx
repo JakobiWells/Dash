@@ -41,13 +41,31 @@ export default function MediaDownloader() {
         body: JSON.stringify(body),
       })
 
-      const data = await res.json().catch(() => ({}))
-
       if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
         setStatus('error')
         setError(data.detail ?? `Server error: ${res.status}`)
         return
       }
+
+      const contentType = res.headers.get('content-type') || ''
+
+      if (contentType.startsWith('audio/')) {
+        // Server streamed the file — download as blob
+        const disposition = res.headers.get('content-disposition') || ''
+        const filename = disposition.match(/filename="(.+?)"/)?.[1] || 'download.mp3'
+        const blob = await res.blob()
+        const blobUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = blobUrl
+        a.download = filename
+        a.click()
+        URL.revokeObjectURL(blobUrl)
+        setStatus('done')
+        return
+      }
+
+      const data = await res.json().catch(() => ({}))
 
       if (data.url) {
         openUrl(data.url)
@@ -121,7 +139,7 @@ export default function MediaDownloader() {
       {/* Status messages */}
       {status === 'loading' && (
         <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
-          <Spinner />Fetching download link…
+          <Spinner />{mode === 'audio' ? 'Downloading…' : 'Fetching link…'}
         </div>
       )}
       {status === 'done' && (

@@ -1,8 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import yt_dlp
 import os
+import re
+import shutil
+import tempfile
 
 app = FastAPI()
 
@@ -49,7 +53,6 @@ def extract(req: ExtractRequest):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(req.url, download=False)
 
-            # Handle playlists — take first entry
             if "entries" in info:
                 info = info["entries"][0]
 
@@ -70,4 +73,48 @@ def extract(req: ExtractRequest):
     except yt_dlp.utils.DownloadError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/download")
+def download_audio(req: ExtractRequest):
+    tmpdir = tempfile.mkdtemp()
+    try:
+        ydl_opts = {
+            "quiet": True,
+            "format": "bestaudio/best",
+            "outtmpl": f"{tmpdir}/%(title)s.%(ext)s",
+            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
+        }
+
+        proxy = os.environ.get("PROXY_URL")
+        if proxy:
+            ydl_opts["proxy"] = proxy
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(req.url, download=True)
+            if "entries" in info:
+                info = info["entries"][0]
+            base = os.path.splitext(ydl.prepare_filename(info))[0]
+            filepath = base + ".mp3"
+            title = info.get("title", "download")
+
+        safe_title = re.sub(r'[^\w\s.-]', '_', title)[:200]
+
+        def iterfile():
+            with open(filepath, "rb") as f:
+                yield from f
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+        return StreamingResponse(
+            iterfile(),
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}.mp3"'},
+        )
+
+    except yt_dlp.utils.DownloadError as e:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        shutil.rmtree(tmpdir, ignore_errors=True)
         raise HTTPException(status_code=500, detail=str(e))

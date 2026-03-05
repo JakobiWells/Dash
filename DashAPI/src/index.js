@@ -14,6 +14,7 @@ app.use('*', cors({
   origin: process.env.ALLOWED_ORIGIN || '*',
   allowMethods: ['GET', 'POST', 'OPTIONS'],
   allowHeaders: ['Content-Type'],
+  exposeHeaders: ['Content-Disposition'],
 }))
 
 // Health check
@@ -27,16 +28,35 @@ app.post('/api/media/download', async (c) => {
     return c.json({ error: 'url is required' }, 400)
   }
 
-  const res = await fetch(`${YTDLP_URL}/extract`, {
+  const audioOnly = body.downloadMode === 'audio'
+
+  const res = await fetch(`${YTDLP_URL}/${audioOnly ? 'download' : 'extract'}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       url: body.url,
-      audio_only: body.downloadMode === 'audio',
+      audio_only: audioOnly,
       quality: body.videoQuality || 'best',
     }),
   })
 
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    console.log('yt-dlp error:', res.status, JSON.stringify(data))
+    return c.json(data, res.status)
+  }
+
+  // Audio: proxy the mp3 file stream back to client
+  if (audioOnly) {
+    return new Response(res.body, {
+      headers: {
+        'Content-Type': 'audio/mpeg',
+        'Content-Disposition': res.headers.get('content-disposition') || 'attachment; filename="download.mp3"',
+      },
+    })
+  }
+
+  // Video: return JSON with direct URL
   const data = await res.json()
   console.log('yt-dlp response:', res.status, JSON.stringify(data))
   return c.json(data, res.status)
