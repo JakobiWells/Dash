@@ -44,6 +44,7 @@ app.post('/api/media/download', async (c) => {
   })
 
   const data = await res.json()
+  console.log('Cobalt response:', res.status, JSON.stringify(data))
   return c.json(data, res.status)
 })
 
