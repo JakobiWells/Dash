@@ -15,14 +15,6 @@ export default function MediaDownloader() {
   const [status, setStatus] = useState(null) // null | 'loading' | 'done' | 'error'
   const [error, setError] = useState(null)
 
-  const openUrl = (downloadUrl) => {
-    const a = document.createElement('a')
-    a.href = downloadUrl
-    a.target = '_blank'
-    a.rel = 'noopener noreferrer'
-    a.click()
-  }
-
   const handleDownload = async () => {
     if (!url.trim()) return
     setStatus('loading')
@@ -32,6 +24,7 @@ export default function MediaDownloader() {
       const body = {
         url: url.trim(),
         downloadMode: mode === 'audio' ? 'audio' : 'auto',
+        audioFormat: audioFormat,
         videoQuality: videoQuality,
       }
 
@@ -48,33 +41,16 @@ export default function MediaDownloader() {
         return
       }
 
-      const contentType = res.headers.get('content-type') || ''
-
-      if (contentType.startsWith('audio/')) {
-        // Server streamed the file — download as blob
-        const disposition = res.headers.get('content-disposition') || ''
-        const filename = disposition.match(/filename="(.+?)"/)?.[1] || 'download.mp3'
-        const blob = await res.blob()
-        const blobUrl = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = blobUrl
-        a.download = filename
-        a.click()
-        URL.revokeObjectURL(blobUrl)
-        setStatus('done')
-        return
-      }
-
-      const data = await res.json().catch(() => ({}))
-
-      if (data.url) {
-        openUrl(data.url)
-        setStatus('done')
-        return
-      }
-
-      setStatus('error')
-      setError('No download URL returned')
+      const disposition = res.headers.get('content-disposition') || ''
+      const filename = disposition.match(/filename="(.+?)"/)?.[1] || 'download'
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(blobUrl)
+      setStatus('done')
     } catch (err) {
       setStatus('error')
       setError(err.message ?? 'Request failed')
@@ -139,7 +115,7 @@ export default function MediaDownloader() {
       {/* Status messages */}
       {status === 'loading' && (
         <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
-          <Spinner />{mode === 'audio' ? 'Downloading…' : 'Fetching link…'}
+          <Spinner />Downloading…
         </div>
       )}
       {status === 'done' && (

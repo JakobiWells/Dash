@@ -30,13 +30,14 @@ app.post('/api/media/download', async (c) => {
 
   const audioOnly = body.downloadMode === 'audio'
 
-  const res = await fetch(`${YTDLP_URL}/${audioOnly ? 'download' : 'extract'}`, {
+  const res = await fetch(`${YTDLP_URL}/download`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       url: body.url,
       audio_only: audioOnly,
       quality: body.videoQuality || 'best',
+      audio_format: body.audioFormat || 'mp3',
     }),
   })
 
@@ -46,20 +47,12 @@ app.post('/api/media/download', async (c) => {
     return c.json(data, res.status)
   }
 
-  // Audio: proxy the mp3 file stream back to client
-  if (audioOnly) {
-    return new Response(res.body, {
-      headers: {
-        'Content-Type': 'audio/mpeg',
-        'Content-Disposition': res.headers.get('content-disposition') || 'attachment; filename="download.mp3"',
-      },
-    })
-  }
-
-  // Video: return JSON with direct URL
-  const data = await res.json()
-  console.log('yt-dlp response:', res.status, JSON.stringify(data))
-  return c.json(data, res.status)
+  return new Response(res.body, {
+    headers: {
+      'Content-Type': res.headers.get('content-type') || 'application/octet-stream',
+      'Content-Disposition': res.headers.get('content-disposition') || 'attachment',
+    },
+  })
 })
 
 serve({ fetch: app.fetch, port: PORT }, () => {
