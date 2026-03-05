@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const COBALT_API = 'https://dash-production-3e07.up.railway.app/api/media/download'
+const API = 'https://dash-production-3e07.up.railway.app/api/media/download'
 
 const AUDIO_FORMATS = ['mp3', 'ogg', 'wav', 'opus', 'best']
 const VIDEO_QUALITIES = ['max', '1080', '720', '480', '360']
@@ -12,9 +12,8 @@ export default function MediaDownloader() {
   const [mode, setMode] = useState('audio')
   const [audioFormat, setAudioFormat] = useState('mp3')
   const [videoQuality, setVideoQuality] = useState('1080')
-  const [status, setStatus] = useState(null) // null | 'loading' | 'done' | 'error' | 'picker'
+  const [status, setStatus] = useState(null) // null | 'loading' | 'done' | 'error'
   const [error, setError] = useState(null)
-  const [pickerItems, setPickerItems] = useState([])
 
   const openUrl = (downloadUrl) => {
     const a = document.createElement('a')
@@ -28,37 +27,25 @@ export default function MediaDownloader() {
     if (!url.trim()) return
     setStatus('loading')
     setError(null)
-    setPickerItems([])
 
     try {
-      const body = { url: url.trim(), downloadMode: mode === 'audio' ? 'audio' : 'auto' }
-      if (mode === 'audio') body.audioFormat = audioFormat
-      if (mode === 'video') body.videoQuality = videoQuality
+      const body = {
+        url: url.trim(),
+        downloadMode: mode === 'audio' ? 'audio' : 'auto',
+        videoQuality: videoQuality,
+      }
 
-      const res = await fetch(COBALT_API, {
+      const res = await fetch(API, {
         method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
 
+      const data = await res.json().catch(() => ({}))
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
         setStatus('error')
-        setError(data.error?.code ?? `Server error: ${res.status}`)
-        return
-      }
-
-      const data = await res.json()
-
-      if (data.status === 'error') {
-        setStatus('error')
-        setError(data.error?.code ?? 'Unknown error')
-        return
-      }
-
-      if (data.status === 'picker') {
-        setStatus('picker')
-        setPickerItems(data.picker ?? [])
+        setError(data.detail ?? `Server error: ${res.status}`)
         return
       }
 
@@ -69,13 +56,10 @@ export default function MediaDownloader() {
       }
 
       setStatus('error')
-      setError('Unexpected response from Cobalt')
+      setError('No download URL returned')
     } catch (err) {
       setStatus('error')
-      const isCors = err.message?.toLowerCase().includes('fetch') || err instanceof TypeError
-      setError(isCors
-        ? 'Request blocked — the Cobalt API may have CORS restrictions. Try api.cobalt.tools directly.'
-        : err.message)
+      setError(err.message ?? 'Request failed')
     }
   }
 
@@ -146,22 +130,6 @@ export default function MediaDownloader() {
       {status === 'error' && (
         <p className="text-xs text-red-400 text-center leading-relaxed">{error}</p>
       )}
-      {status === 'picker' && pickerItems.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-xs text-gray-400 text-center">Multiple items found — pick one:</p>
-          <div className="flex flex-col gap-1 overflow-y-auto max-h-28">
-            {pickerItems.map((item, i) => (
-              <button
-                key={i}
-                onClick={() => openUrl(item.url)}
-                className="text-xs text-left px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 cursor-pointer transition-colors truncate"
-              >
-                {item.type === 'photo' ? '🖼' : '🎬'} {item.url?.split('/').pop()?.slice(0, 50) || `Item ${i + 1}`}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Download button */}
       <button
@@ -180,15 +148,7 @@ export default function MediaDownloader() {
           {SUPPORTED.join(' · ')}
         </p>
         <p className="text-xs text-gray-200 text-center">
-          Powered by{' '}
-          <a
-            href="https://cobalt.tools"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-gray-400 transition-colors"
-          >
-            cobalt.tools
-          </a>
+          Powered by yt-dlp
         </p>
       </div>
 

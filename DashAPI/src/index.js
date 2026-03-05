@@ -6,8 +6,7 @@ setDefaultResultOrder('ipv4first')
 
 const app = new Hono()
 
-const COBALT_URL = process.env.COBALT_URL || 'http://localhost:9000'
-const COBALT_API_KEY = process.env.COBALT_API_KEY || ''
+const YTDLP_URL = process.env.YTDLP_URL || 'http://localhost:8000'
 const PORT = process.env.PORT || 3000
 
 // CORS — allow requests from Dash frontend
@@ -20,7 +19,7 @@ app.use('*', cors({
 // Health check
 app.get('/', (c) => c.json({ ok: true, service: 'Dash API' }))
 
-// Media download — proxies to Cobalt
+// Media download — proxies to yt-dlp service
 app.post('/api/media/download', async (c) => {
   const body = await c.req.json()
 
@@ -28,23 +27,18 @@ app.post('/api/media/download', async (c) => {
     return c.json({ error: 'url is required' }, 400)
   }
 
-  const headers = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  }
-
-  if (COBALT_API_KEY) {
-    headers['Authorization'] = `Api-Key ${COBALT_API_KEY}`
-  }
-
-  const res = await fetch(`${COBALT_URL}/`, {
+  const res = await fetch(`${YTDLP_URL}/extract`, {
     method: 'POST',
-    headers,
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: body.url,
+      audio_only: body.downloadMode === 'audio',
+      quality: body.videoQuality || 'best',
+    }),
   })
 
   const data = await res.json()
-  console.log('Cobalt response:', res.status, JSON.stringify(data))
+  console.log('yt-dlp response:', res.status, JSON.stringify(data))
   return c.json(data, res.status)
 })
 
