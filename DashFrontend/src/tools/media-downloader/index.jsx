@@ -1,7 +1,6 @@
 import { useState } from 'react'
 
-const API_BASE = 'https://dash-production-3e07.up.railway.app'
-const API = `${API_BASE}/api/media/download`
+const API = 'https://dash-production-3e07.up.railway.app/api/media/download'
 
 const AUDIO_FORMATS = ['mp3', 'ogg', 'wav', 'opus', 'best']
 const VIDEO_QUALITIES = ['max', '1080', '720', '480', '360']
@@ -16,11 +15,11 @@ export default function MediaDownloader() {
   const [status, setStatus] = useState(null) // null | 'loading' | 'done' | 'error'
   const [error, setError] = useState(null)
 
-  const triggerDownload = (mediaUrl, title, ext) => {
-    const streamUrl = `${API_BASE}/api/media/stream?url=${encodeURIComponent(mediaUrl)}&filename=${encodeURIComponent(title || 'download')}&ext=${encodeURIComponent(ext || 'mp4')}`
+  const openUrl = (downloadUrl) => {
     const a = document.createElement('a')
-    a.href = streamUrl
-    a.download = `${title || 'download'}.${ext || 'mp4'}`
+    a.href = downloadUrl
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
     a.click()
   }
 
@@ -51,7 +50,7 @@ export default function MediaDownloader() {
       }
 
       if (data.url) {
-        triggerDownload(data.url, data.title, data.ext)
+        openUrl(data.url)
         setStatus('done')
         return
       }
