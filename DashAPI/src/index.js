@@ -19,6 +19,29 @@ app.use('*', cors({
 // Health check
 app.get('/', (c) => c.json({ ok: true, service: 'Dash API' }))
 
+// Stream proxy — fetches media URL server-side and sends as download
+app.get('/api/media/stream', async (c) => {
+  const url = c.req.query('url')
+  const filename = c.req.query('filename') || 'download'
+  const ext = c.req.query('ext') || 'mp4'
+
+  if (!url) return c.json({ error: 'url is required' }, 400)
+
+  const res = await fetch(decodeURIComponent(url))
+  if (!res.ok) return c.json({ error: 'Failed to fetch media' }, 502)
+
+  const contentType = res.headers.get('content-type') || 'application/octet-stream'
+  const safeFilename = filename.replace(/[^\w\s.-]/g, '_').slice(0, 200)
+
+  return new Response(res.body, {
+    headers: {
+      'Content-Type': contentType,
+      'Content-Disposition': `attachment; filename="${safeFilename}.${ext}"`,
+      'Content-Length': res.headers.get('content-length') || '',
+    },
+  })
+})
+
 // Media download — proxies to yt-dlp service
 app.post('/api/media/download', async (c) => {
   const body = await c.req.json()
