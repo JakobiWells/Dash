@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const API = 'https://dash-production-3e07.up.railway.app/api/media/download'
+const API_BASE = 'https://dash-production-3e07.up.railway.app'
 
 const AUDIO_FORMATS = ['mp3', 'ogg', 'wav', 'opus', 'best']
 const VIDEO_QUALITIES = ['max', '1080', '720', '480', '360']
@@ -15,49 +15,23 @@ export default function MediaDownloader() {
   const [status, setStatus] = useState(null) // null | 'loading' | 'done' | 'error'
   const [error, setError] = useState(null)
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (!url.trim()) return
-    setStatus('loading')
-    setError(null)
 
-    try {
-      const body = {
-        url: url.trim(),
-        downloadMode: mode === 'audio' ? 'audio' : 'auto',
-        audioFormat: audioFormat,
-        videoQuality: videoQuality,
-      }
+    const params = new URLSearchParams({
+      url: url.trim(),
+      mode: mode === 'audio' ? 'audio' : 'video',
+      format: audioFormat,
+      quality: videoQuality,
+    })
 
-      const res = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setStatus('error')
-        setError(data.detail ?? `Server error: ${res.status}`)
-        return
-      }
-
-      const disposition = res.headers.get('content-disposition') || ''
-      const filename = disposition.match(/filename="(.+?)"/)?.[1] || 'download'
-      const blob = await res.blob()
-      const blobUrl = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = filename
-      a.click()
-      URL.revokeObjectURL(blobUrl)
-      setStatus('done')
-    } catch (err) {
-      setStatus('error')
-      setError(err.message ?? 'Request failed')
-    }
+    const a = document.createElement('a')
+    a.href = `${API_BASE}/api/media/download?${params}`
+    a.click()
+    setStatus('done')
   }
 
-  const busy = status === 'loading'
+  const busy = false
 
   return (
     <div className="h-full flex flex-col gap-3">
@@ -113,13 +87,8 @@ export default function MediaDownloader() {
       </div>
 
       {/* Status messages */}
-      {status === 'loading' && (
-        <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
-          <Spinner />Downloading…
-        </div>
-      )}
       {status === 'done' && (
-        <p className="text-xs text-green-500 text-center">Download started in a new tab!</p>
+        <p className="text-xs text-green-500 text-center">Download started!</p>
       )}
       {status === 'error' && (
         <p className="text-xs text-red-400 text-center leading-relaxed">{error}</p>
