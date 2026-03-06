@@ -1,0 +1,10 @@
+{
+  "id": "calendar",
+  "name": "Calendar",
+  "description": "Monthly calendar that syncs with Google, Apple, or any iCal feed",
+  "icon": "📅",
+  "category": "Productivity",
+  "popular": false,
+  "defaultSize": { "w": 11, "h": 20 },
+  "minSize": { "w": 9, "h": 16 }
+}

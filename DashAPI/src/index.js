@@ -127,6 +127,34 @@ app.get('/api/meta', async (c) => {
   }
 })
 
+// ── GET /api/ical ──────────────────────────────────────────────────────────────
+// Proxy ICS/iCal feeds to avoid browser CORS restrictions.
+// Converts webcal:// → https:// automatically.
+app.get('/api/ical', async (c) => {
+  const raw = c.req.query('url')
+  if (!raw) return c.json({ error: 'url required' }, 400)
+
+  try {
+    const decoded = decodeURIComponent(raw)
+    const fetchUrl = decoded.replace(/^webcal:\/\//i, 'https://')
+    const parsed = new URL(fetchUrl)
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return c.json({ error: 'Invalid URL' }, 400)
+    }
+
+    const res = await fetch(fetchUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DashBot/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return c.json({ error: `Upstream ${res.status}` }, res.status)
+
+    const text = await res.text()
+    return c.text(text, 200, { 'Content-Type': 'text/calendar; charset=utf-8' })
+  } catch (e) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
 // Billing — webhook must be raw text (Stripe signature verification)
 app.post('/api/billing/webhook', handleWebhook)
 app.post('/api/billing/checkout', createCheckout)
