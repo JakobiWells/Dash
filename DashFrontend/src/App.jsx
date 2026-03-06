@@ -66,6 +66,9 @@ export default function App() {
   )
   const [saving, setSaving] = useState(false)
   const [savedTick, setSavedTick] = useState(false)
+  const autoSaveTimer = useRef(null)
+  const activeLayoutIdRef = useRef(activeLayoutId)
+  useEffect(() => { activeLayoutIdRef.current = activeLayoutId }, [activeLayoutId])
 
   const settingsRef = useRef(null)
   const userMenuRef = useRef(null)
@@ -113,11 +116,40 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showSettings, showUserMenu])
 
-  // Fetch cloud layouts when user signs in
+  // Fetch cloud layouts when user signs in; auto-load or migrate on first login
   useEffect(() => {
     if (!user) { setSavedLayouts([]); return }
     fetchLayouts()
-      .then(data => setSavedLayouts(data ?? []))
+      .then(async (data) => {
+        const layouts = data ?? []
+        setSavedLayouts(layouts)
+
+        if (layouts.length === 0) {
+          // First login — migrate current localStorage layout to cloud
+          if (!gridRef.current) return
+          const state = gridRef.current.getState()
+          const saved = await upsertLayout(null, 'Default', state).catch(console.error)
+          if (saved?.[0]?.id) {
+            const newId = saved[0].id
+            setActiveLayoutId(newId)
+            activeLayoutIdRef.current = newId
+            localStorage.setItem('dashpad-active-layout-id', newId)
+            setSavedLayouts([{ id: newId, name: 'Default' }])
+          }
+        } else {
+          // Auto-load: prefer the previously active layout, fall back to most recent
+          const targetId = (activeLayoutIdRef.current && layouts.find(l => l.id === activeLayoutIdRef.current))
+            ? activeLayoutIdRef.current
+            : layouts[layouts.length - 1].id
+          const layoutData = await loadLayoutById(targetId).catch(console.error)
+          if (layoutData && gridRef.current) {
+            gridRef.current.loadState(layoutData)
+            setActiveLayoutId(targetId)
+            activeLayoutIdRef.current = targetId
+            localStorage.setItem('dashpad-active-layout-id', targetId)
+          }
+        }
+      })
       .catch(console.error)
   }, [user])
 
@@ -201,6 +233,24 @@ export default function App() {
     } catch (e) {
       console.error('Delete failed:', e)
     }
+  }
+
+  // Auto-save: debounced cloud save whenever grid state changes
+  function handleStateChange(state) {
+    if (!user) return
+    clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(async () => {
+      const layoutId = activeLayoutIdRef.current
+      if (!layoutId) return // no layout to save to yet
+      try {
+        const name = savedLayouts.find(l => l.id === layoutId)?.name ?? 'Default'
+        await upsertLayout(layoutId, name, state)
+        setSavedTick(true)
+        setTimeout(() => setSavedTick(false), 1500)
+      } catch (e) {
+        console.error('Auto-save failed:', e)
+      }
+    }, 3000)
   }
 
   const initials = user?.email?.[0]?.toUpperCase() ?? '?'
@@ -368,7 +418,7 @@ export default function App() {
             minHeight: `calc((100vh - 64px) / ${zoom})`,
           }}
         >
-          <Grid ref={gridRef} zoom={zoom} showAddModal={showAddModal} setShowAddModal={setShowAddModal} />
+          <Grid ref={gridRef} zoom={zoom} showAddModal={showAddModal} setShowAddModal={setShowAddModal} onStateChange={handleStateChange} />
         </div>
       </main>
 

@@ -67,7 +67,7 @@ function saveActiveIds(ids) {
 
 const PAD = CELL
 
-const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1 }, ref) {
+const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1, onStateChange }, ref) {
   const { user, loading } = useAuth()
   const containerRef = useRef(null)
   const [containerWidth, setContainerWidth] = useState(
@@ -119,6 +119,17 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1 
       saveActiveIds(newIds)
     },
   }), [layout, activeIds])
+
+  // Notify parent when grid state changes (for cloud auto-save)
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    if (!onStateChange) return
+    const toolsOnly = layout.filter(
+      item => !item.i.startsWith('file__') && !item.i.startsWith('welcome__')
+    )
+    onStateChange({ layout: toolsOnly, activeIds })
+  }, [layout, activeIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Add or remove welcome card from layout whenever showWelcome changes
   useEffect(() => {
