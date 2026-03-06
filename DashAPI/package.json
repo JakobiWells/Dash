@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.10",
-    "hono": "^4.6.0"
+    "@supabase/supabase-js": "^2.98.0",
+    "hono": "^4.6.0",
+    "stripe": "^20.4.0"
   }
 }

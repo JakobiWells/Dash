@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import { cors } from 'hono/cors'
 import { setDefaultResultOrder } from 'dns'
+import { createCheckout, createPortal, handleWebhook } from './billing.js'
 setDefaultResultOrder('ipv4first')
 
 const app = new Hono()
@@ -85,6 +86,11 @@ app.post('/api/media/download', async (c) => {
     },
   })
 })
+
+// Billing — webhook must be raw text (Stripe signature verification)
+app.post('/api/billing/webhook', handleWebhook)
+app.post('/api/billing/checkout', createCheckout)
+app.post('/api/billing/portal', createPortal)
 
 serve({ fetch: app.fetch, port: PORT }, () => {
   console.log(`Dash API running on port ${PORT}`)

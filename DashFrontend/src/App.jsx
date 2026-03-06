@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import Grid from './shell/Grid'
 import AuthModal from './components/AuthModal'
+import UpgradeModal from './components/UpgradeModal'
 import LayoutSwitcher from './shell/LayoutSwitcher'
 import { useAuth } from './context/AuthContext'
+import { usePro } from './hooks/usePro'
 import {
   fetchLayouts,
   upsertLayout,
@@ -48,11 +50,13 @@ function MiniSpinner() {
 
 export default function App() {
   const { user, signOut, loading } = useAuth()
+  const { isPro } = usePro()
   const gridRef = useRef(null)
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('dashpad-dark') === '1')
@@ -205,6 +209,11 @@ export default function App() {
   // Save current state as a new named layout
   async function handleSaveAs(name) {
     if (!user || !gridRef.current) return
+    // Free users are limited to 1 saved layout
+    if (!isPro && savedLayouts.length >= FREE_LAYOUT_LIMIT) {
+      setShowUpgradeModal(true)
+      return
+    }
     try {
       const state = gridRef.current.getState()
       const data = await upsertLayout(null, name, state)
@@ -386,7 +395,34 @@ export default function App() {
                 </button>
                 {showUserMenu && (
                   <div className="absolute right-0 top-10 w-52 bg-white dark:bg-[#1e1e1c] rounded-xl shadow-lg border border-gray-200 dark:border-[#2e2e2c] py-1 z-50">
-                    <p className="px-4 py-2 text-xs text-gray-400 dark:text-gray-500 truncate border-b border-gray-100 dark:border-[#2e2e2c]">{user.email}</p>
+                    <div className="px-4 py-2 border-b border-gray-100 dark:border-[#2e2e2c]">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{user.email}</p>
+                      <p className="text-[11px] font-medium mt-0.5">{isPro ? '✦ Pro' : 'Free plan'}</p>
+                    </div>
+                    {isPro ? (
+                      <button
+                        onClick={async () => {
+                          setShowUserMenu(false)
+                          const res = await fetch(`https://dash-production-3e07.up.railway.app/api/billing/portal`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: user.id }),
+                          })
+                          const data = await res.json()
+                          if (data.url) window.location.href = data.url
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a28] cursor-pointer"
+                      >
+                        Manage subscription
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { setShowUserMenu(false); setShowUpgradeModal(true) }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a28] cursor-pointer"
+                      >
+                        Upgrade to Pro ✦
+                      </button>
+                    )}
                     <button
                       onClick={() => { signOut(); setShowUserMenu(false) }}
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a28] cursor-pointer"
@@ -423,6 +459,7 @@ export default function App() {
       </main>
 
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}
     </div>
   )
 }
