@@ -1,15 +1,15 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-
-// Service-role client — bypasses RLS so webhooks can update any user's profile
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-)
-
 const APP_URL = process.env.APP_URL || 'https://dashpad.dev'
+
+// Lazy init — env vars are set by Railway at runtime, not at import time
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY)
+}
+function getSupabase() {
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+}
 
 // ── POST /api/billing/checkout ────────────────────────────────────────────────
 export async function createCheckout(c) {
@@ -22,7 +22,9 @@ export async function createCheckout(c) {
 
   if (!priceId) return c.json({ error: 'Price not configured' }, 500)
 
-  // Re-use existing Stripe customer if we have one
+  const stripe = getStripe()
+  const supabase = getSupabase()
+
   const { data: profile } = await supabase
     .from('profiles')
     .select('stripe_customer_id')
@@ -54,6 +56,9 @@ export async function createPortal(c) {
   const { userId } = await c.req.json()
   if (!userId) return c.json({ error: 'Missing userId' }, 400)
 
+  const stripe = getStripe()
+  const supabase = getSupabase()
+
   const { data: profile } = await supabase
     .from('profiles')
     .select('stripe_customer_id')
@@ -74,6 +79,9 @@ export async function createPortal(c) {
 export async function handleWebhook(c) {
   const sig = c.req.header('stripe-signature')
   const rawBody = await c.req.text()
+
+  const stripe = getStripe()
+  const supabase = getSupabase()
 
   let event
   try {
