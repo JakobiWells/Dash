@@ -133,7 +133,6 @@ export default function CalendarTool({ instanceId }) {
       .from('calendar_feeds')
       .select('*')
       .eq('user_id', user.id)
-      .eq('instance_id', instanceId)
       .order('created_at', { ascending: true })
       .then(({ data }) => { if (data) setFeeds(data) })
   }, [user, instanceId])
@@ -155,10 +154,9 @@ export default function CalendarTool({ instanceId }) {
   async function addFeed() {
     if (!newFeed.url.trim()) return
     const feedData = {
-      url:         newFeed.url.trim(),
-      label:       newFeed.label.trim() || 'Calendar',
-      color:       newFeed.color,
-      instance_id: instanceId,
+      url:   newFeed.url.trim(),
+      label: newFeed.label.trim() || 'Calendar',
+      color: newFeed.color,
     }
 
     if (user) {
