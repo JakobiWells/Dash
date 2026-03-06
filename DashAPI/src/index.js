@@ -87,6 +87,46 @@ app.post('/api/media/download', async (c) => {
   })
 })
 
+// ── GET /api/meta ─────────────────────────────────────────────────────────────
+app.get('/api/meta', async (c) => {
+  const url = c.req.query('url')
+  if (!url) return c.json({ error: 'url required' }, 400)
+
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DashBot/1.0)' },
+      signal: AbortSignal.timeout(8000),
+    })
+    const html = await res.text()
+
+    const getMeta = (name) => {
+      const a = html.match(new RegExp(`<meta[^>]+(?:name|property)=["']${name}["'][^>]+content=["']([^"']+)["']`, 'i'))
+      const b = html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["']${name}["']`, 'i'))
+      return (a?.[1] || b?.[1] || '').trim()
+    }
+
+    const titleTag = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+    const title = getMeta('og:title') || getMeta('twitter:title') || titleTag?.[1]?.trim() || ''
+    const site = getMeta('og:site_name') || new URL(url).hostname.replace('www.', '')
+    const author = getMeta('article:author') || getMeta('author') || ''
+    const published = getMeta('article:published_time') || getMeta('og:updated_time') || ''
+
+    let year = '', month = '', day = ''
+    if (published) {
+      const d = new Date(published)
+      if (!isNaN(d)) {
+        year = String(d.getFullYear())
+        month = d.toLocaleString('en-US', { month: 'long' })
+        day = String(d.getDate())
+      }
+    }
+
+    return c.json({ title, site, author, year, month, day })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
 // Billing — webhook must be raw text (Stripe signature verification)
 app.post('/api/billing/webhook', handleWebhook)
 app.post('/api/billing/checkout', createCheckout)
