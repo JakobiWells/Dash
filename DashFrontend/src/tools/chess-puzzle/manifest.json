@@ -1,0 +1,10 @@
+{
+  "id": "chess-puzzle",
+  "name": "Chess Puzzle",
+  "description": "Lichess daily puzzle — find the best move",
+  "icon": "♟",
+  "category": "Games",
+  "popular": false,
+  "defaultSize": { "w": 12, "h": 16 },
+  "minSize": { "w": 10, "h": 14 }
+}

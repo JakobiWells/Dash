@@ -1,0 +1,10 @@
+{
+  "id": "chess-vs-computer",
+  "name": "Chess",
+  "description": "Play chess against a computer opponent",
+  "icon": "♙",
+  "category": "Games",
+  "popular": false,
+  "defaultSize": { "w": 14, "h": 18 },
+  "minSize": { "w": 10, "h": 14 }
+}
