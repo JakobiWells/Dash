@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import ICAL from 'ical.js'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
 
 const API_BASE = 'https://dash-production-3e07.up.railway.app'
 
@@ -14,14 +16,14 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-// ─── Persistence ─────────────────────────────────────────────────────────────
+// ─── Persistence (localStorage fallback for guests) ──────────────────────────
 
-function loadFeeds(instanceId) {
+function lsLoad(instanceId) {
   try { const s = localStorage.getItem(`cal-feeds-${instanceId}`); return s ? JSON.parse(s) : [] }
   catch { return [] }
 }
-function saveFeeds(instanceId, feeds) {
-  localStorage.setItem(`cal-feeds-${instanceId}`, JSON.stringify(feeds))
+function lsSave(instanceId, feeds) {
+  try { localStorage.setItem(`cal-feeds-${instanceId}`, JSON.stringify(feeds)) } catch {}
 }
 
 // ─── Calendar helpers ─────────────────────────────────────────────────────────
@@ -111,14 +113,30 @@ async function fetchFeedEvents(feed, rangeStart, rangeEnd) {
 
 export default function CalendarTool({ instanceId }) {
   const today = new Date()
+  const { user } = useAuth()
 
   const [viewDate,  setViewDate]  = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [selected,  setSelected]  = useState(today)
-  const [feeds,     setFeeds]     = useState(() => loadFeeds(instanceId))
+  const [feeds,     setFeeds]     = useState([])
   const [events,    setEvents]    = useState([])
   const [loading,   setLoading]   = useState(false)
   const [showAdd,   setShowAdd]   = useState(false)
   const [newFeed,   setNewFeed]   = useState({ url: '', label: '', color: FEED_COLORS[0] })
+
+  // Load feeds from Supabase (logged in) or localStorage (guest)
+  useEffect(() => {
+    if (!user) {
+      setFeeds(lsLoad(instanceId))
+      return
+    }
+    supabase
+      .from('calendar_feeds')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('instance_id', instanceId)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => { if (data) setFeeds(data) })
+  }, [user, instanceId])
 
   // Load events whenever feeds or viewed month changes
   const reload = useCallback(async (feedList, center) => {
@@ -134,25 +152,39 @@ export default function CalendarTool({ instanceId }) {
   useEffect(() => { reload(feeds, viewDate) }, [feeds, viewDate, reload])
 
   // ── Mutations ──
-  function addFeed() {
+  async function addFeed() {
     if (!newFeed.url.trim()) return
-    const feed = {
-      id:    Date.now().toString(),
-      url:   newFeed.url.trim(),
-      label: newFeed.label.trim() || 'Calendar',
-      color: newFeed.color,
+    const feedData = {
+      url:         newFeed.url.trim(),
+      label:       newFeed.label.trim() || 'Calendar',
+      color:       newFeed.color,
+      instance_id: instanceId,
     }
-    const next = [...feeds, feed]
-    setFeeds(next)
-    saveFeeds(instanceId, next)
-    setNewFeed({ url: '', label: '', color: FEED_COLORS[next.length % FEED_COLORS.length] })
+
+    if (user) {
+      const { data } = await supabase
+        .from('calendar_feeds')
+        .insert({ ...feedData, user_id: user.id })
+        .select().single()
+      if (data) setFeeds(prev => [...prev, data])
+    } else {
+      const feed = { ...feedData, id: Date.now().toString() }
+      const next = [...feeds, feed]
+      setFeeds(next)
+      lsSave(instanceId, next)
+    }
+
+    setNewFeed({ url: '', label: '', color: FEED_COLORS[(feeds.length + 1) % FEED_COLORS.length] })
     setShowAdd(false)
   }
 
-  function removeFeed(id) {
-    const next = feeds.filter(f => f.id !== id)
-    setFeeds(next)
-    saveFeeds(instanceId, next)
+  async function removeFeed(id) {
+    if (user) {
+      await supabase.from('calendar_feeds').delete().eq('id', id).eq('user_id', user.id)
+    } else {
+      lsSave(instanceId, feeds.filter(f => f.id !== id))
+    }
+    setFeeds(prev => prev.filter(f => f.id !== id))
   }
 
   // ── Derived ──
@@ -345,6 +377,11 @@ export default function CalendarTool({ instanceId }) {
             >
               + Add a calendar
             </button>
+            {!user && (
+              <p className="text-[9px] text-gray-300 dark:text-gray-600 mt-1">
+                Sign in to sync across devices
+              </p>
+            )}
           </div>
         )}
 
