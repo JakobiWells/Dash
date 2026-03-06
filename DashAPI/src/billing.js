@@ -1,7 +1,7 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
-const APP_URL = process.env.APP_URL || 'https://dashpad.dev'
+const APP_URL = (process.env.APP_URL || 'https://dashpad.dev').trim()
 
 // Lazy init — env vars are set by Railway at runtime, not at import time
 function getStripe() {
