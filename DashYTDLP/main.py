@@ -6,8 +6,20 @@ import yt_dlp
 import os
 import re
 import subprocess
+import tempfile
+import atexit
 
 app = FastAPI()
+
+# Write YOUTUBE_COOKIES env var to a temp file once at startup
+_cookies_file = None
+_cookies_raw = os.environ.get("YOUTUBE_COOKIES", "").strip()
+if _cookies_raw:
+    _tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+    _tmp.write(_cookies_raw)
+    _tmp.close()
+    _cookies_file = _tmp.name
+    atexit.register(lambda: os.unlink(_cookies_file) if os.path.exists(_cookies_file) else None)
 
 app.add_middleware(
     CORSMiddleware,
@@ -51,7 +63,10 @@ def download(req: DownloadRequest):
         "no_warnings": True,
         "format": fmt,
         "skip_download": True,
+        "extractor_args": {"youtube": {"player_client": ["android"]}},
     }
+    if _cookies_file:
+        ydl_opts["cookiefile"] = _cookies_file
     if os.environ.get("PROXY_URL"):
         ydl_opts["proxy"] = os.environ["PROXY_URL"]
 
