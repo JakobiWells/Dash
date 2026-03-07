@@ -444,7 +444,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="overflow-x-hidden">
+      <main className="overflow-x-auto">
         <div
           className="grid-bg"
           style={{

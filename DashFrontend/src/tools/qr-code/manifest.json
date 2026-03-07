@@ -1,0 +1,10 @@
+{
+  "id": "qr-code",
+  "name": "QR Code",
+  "description": "Generate custom QR codes with logos, colors, and shapes",
+  "icon": "▣",
+  "category": "Utilities",
+  "popular": true,
+  "defaultSize": { "w": 10, "h": 18 },
+  "minSize": { "w": 8, "h": 16 }
+}

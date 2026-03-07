@@ -9,6 +9,9 @@ import { useAuth } from '../context/AuthContext'
 
 // Must match background-size in index.css
 const CELL = 32
+// Extra columns/rows always available beyond the rightmost/lowest tool
+const EXTRA_COLS = 20
+const EXTRA_ROWS = 20
 
 function snapWidth(raw) {
   return Math.floor(raw / CELL) * CELL
@@ -65,26 +68,16 @@ function saveActiveIds(ids) {
   try { localStorage.setItem(ACTIVE_KEY, JSON.stringify(ids)) } catch {}
 }
 
-const PAD = CELL
-
 const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1, onStateChange }, ref) {
   const { user, loading } = useAuth()
   const containerRef = useRef(null)
-  const [containerWidth, setContainerWidth] = useState(
-    () => snapWidth(window.innerWidth - PAD * 2)
-  )
+  const [windowWidth, setWindowWidth] = useState(() => snapWidth(window.innerWidth))
 
   useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const obs = new ResizeObserver(([entry]) => {
-      setContainerWidth(snapWidth(entry.contentRect.width))
-    })
-    obs.observe(el)
-    return () => obs.disconnect()
+    function onResize() { setWindowWidth(snapWidth(window.innerWidth)) }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
   }, [])
-
-  const cols = containerWidth / CELL
 
   const [activeIds, setActiveIds] = useState(() => {
     const saved = loadActiveIds()
@@ -103,6 +96,13 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
   })
 
   const [fileItems, setFileItems] = useState([])
+
+  // Dynamic grid size: always extends EXTRA_COLS/EXTRA_ROWS beyond the last tool
+  const toolsRightEdge = layout.reduce((m, item) => Math.max(m, item.x + item.w), 0)
+  const toolsBottomEdge = layout.reduce((m, item) => Math.max(m, item.y + item.h), 0)
+  const cols = Math.max(Math.floor(windowWidth / CELL), toolsRightEdge + EXTRA_COLS)
+  const effectiveWidth = cols * CELL
+  const minGridHeight = (toolsBottomEdge + EXTRA_ROWS) * CELL
 
   // Expose getState / loadState to parent (App.jsx) via ref for cloud save/load
   useImperativeHandle(ref, () => ({
@@ -224,8 +224,8 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
     const rect = container.getBoundingClientRect()
 
     // rect is in visual (post-transform) pixels; divide by scaled cell size
-    const dropX = Math.max(0, Math.floor((e.clientX - rect.left - PAD * zoom) / (CELL * zoom)))
-    const dropY = Math.max(0, Math.floor((e.clientY - rect.top  - PAD * zoom) / (CELL * zoom)))
+    const dropX = Math.max(0, Math.floor((e.clientX - rect.left) / (CELL * zoom)))
+    const dropY = Math.max(0, Math.floor((e.clientY - rect.top) / (CELL * zoom)))
     const now = Date.now()
 
     const newFileItems = files.map((file, i) => ({
@@ -279,12 +279,12 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
       )}
       <div
         ref={containerRef}
-        style={{ padding: `${PAD}px` }}
-        className="w-full relative"
+        style={{ width: `${effectiveWidth}px`, minHeight: `${minGridHeight}px` }}
+        className="grid-bg relative"
       >
 
         <GridLayout
-          width={containerWidth}
+          width={effectiveWidth}
           cols={cols}
           rowHeight={CELL}
           margin={[0, 0]}

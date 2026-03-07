@@ -1,0 +1,10 @@
+{
+  "id": "calculator",
+  "name": "Calculator",
+  "description": "Type math expressions and see results with a scrollable history.",
+  "icon": "🧮",
+  "category": "Productivity",
+  "popular": true,
+  "defaultSize": { "w": 10, "h": 14 },
+  "minSize": { "w": 8, "h": 10 }
+}

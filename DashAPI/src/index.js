@@ -3,6 +3,7 @@ import { serve } from '@hono/node-server'
 import { cors } from 'hono/cors'
 import { setDefaultResultOrder } from 'dns'
 import { createCheckout, createPortal, handleWebhook } from './billing.js'
+import { createQR, listQR, getQRStats, getQR, updateQR, deleteQR, redirectQR } from './qr.js'
 setDefaultResultOrder('ipv4first')
 
 const app = new Hono()
@@ -13,8 +14,8 @@ const PORT = process.env.PORT || 3000
 // CORS — allow requests from Dash frontend
 app.use('*', cors({
   origin: process.env.ALLOWED_ORIGIN || '*',
-  allowMethods: ['GET', 'POST', 'OPTIONS'],
-  allowHeaders: ['Content-Type'],
+  allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
   exposeHeaders: ['Content-Disposition'],
 }))
 
@@ -159,6 +160,17 @@ app.get('/api/ical', async (c) => {
 app.post('/api/billing/webhook', handleWebhook)
 app.post('/api/billing/checkout', createCheckout)
 app.post('/api/billing/portal', createPortal)
+
+// QR code CRUD
+app.post('/api/qr', createQR)
+app.get('/api/qr', listQR)
+app.get('/api/qr/:id/stats', getQRStats)
+app.get('/api/qr/:id', getQR)
+app.patch('/api/qr/:id', updateQR)
+app.delete('/api/qr/:id', deleteQR)
+
+// Public redirect — must be last so it doesn't swallow other routes
+app.get('/:code', redirectQR)
 
 serve({ fetch: app.fetch, port: PORT }, () => {
   console.log(`Dash API running on port ${PORT}`)

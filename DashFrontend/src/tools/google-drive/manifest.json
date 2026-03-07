@@ -1,0 +1,10 @@
+{
+  "id": "google-drive",
+  "name": "Google Drive",
+  "description": "Browse and open your Google Drive files. Connect with your Google account.",
+  "icon": "📂",
+  "category": "Productivity",
+  "popular": false,
+  "defaultSize": { "w": 14, "h": 18 },
+  "minSize": { "w": 10, "h": 12 }
+}

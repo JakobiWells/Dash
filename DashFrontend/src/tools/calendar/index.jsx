@@ -45,11 +45,11 @@ function getMonthCells(year, month) {
 
 // ─── ICS fetch + parse ────────────────────────────────────────────────────────
 
-async function fetchFeedEvents(feed, rangeStart, rangeEnd) {
+async function fetchFeedEvents(feed, rangeStart, rangeEnd, onError) {
   try {
     const proxyUrl = `${API_BASE}/api/ical?url=${encodeURIComponent(feed.url)}`
     const res = await fetch(proxyUrl)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) throw new Error(`HTTP ${res.status} from proxy`)
     const text = await res.text()
 
     const events = []
@@ -105,6 +105,7 @@ async function fetchFeedEvents(feed, rangeStart, rangeEnd) {
     return events
   } catch (e) {
     console.error(`Calendar: failed to load "${feed.label}":`, e)
+    onError?.(`Failed to load "${feed.label}": ${e.message}`)
     return []
   }
 }
@@ -120,6 +121,7 @@ export default function CalendarTool({ instanceId }) {
   const [feeds,     setFeeds]     = useState([])
   const [events,    setEvents]    = useState([])
   const [loading,   setLoading]   = useState(false)
+  const [feedError, setFeedError] = useState(null)
   const [showAdd,   setShowAdd]   = useState(false)
   const [newFeed,   setNewFeed]   = useState({ url: '', label: '', color: FEED_COLORS[0] })
 
@@ -141,10 +143,11 @@ export default function CalendarTool({ instanceId }) {
   const reload = useCallback(async (feedList, center) => {
     if (!feedList.length) { setEvents([]); return }
     setLoading(true)
+    setFeedError(null)
     const rangeStart = new Date(center.getFullYear(), center.getMonth() - 1, 1)
     const rangeEnd   = new Date(center.getFullYear(), center.getMonth() + 2, 0)
-    const all = await Promise.all(feedList.map(f => fetchFeedEvents(f, rangeStart, rangeEnd)))
-    setEvents(all.flat().sort((a, b) => a.start - b.start))
+    const results = await Promise.all(feedList.map(f => fetchFeedEvents(f, rangeStart, rangeEnd, setFeedError)))
+    setEvents(results.flat().sort((a, b) => a.start - b.start))
     setLoading(false)
   }, [])
 
@@ -357,6 +360,10 @@ export default function CalendarTool({ instanceId }) {
             ? 'Today'
             : selected.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
         </p>
+
+        {feedError && (
+          <p className="text-[10px] text-red-400 bg-red-50 dark:bg-red-950/30 rounded-lg px-2 py-1.5 mb-2">{feedError}</p>
+        )}
 
         {loading && (
           <div className="flex justify-center py-4">

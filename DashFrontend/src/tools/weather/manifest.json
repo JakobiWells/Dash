@@ -1,0 +1,10 @@
+{
+  "id": "weather",
+  "name": "Weather",
+  "description": "Current conditions and 5-day forecast. Auto-detects location or search any city.",
+  "icon": "🌤️",
+  "category": "Productivity",
+  "popular": true,
+  "defaultSize": { "w": 12, "h": 18 },
+  "minSize": { "w": 10, "h": 14 }
+}
