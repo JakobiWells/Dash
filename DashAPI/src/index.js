@@ -9,6 +9,7 @@ setDefaultResultOrder('ipv4first')
 const app = new Hono()
 
 const YTDLP_URL = process.env.YTDLP_URL || 'http://localhost:8000'
+const STEM_URL = process.env.STEM_URL || 'http://localhost:8001'
 const PORT = process.env.PORT || 3000
 
 // CORS — allow requests from Dash frontend
@@ -171,6 +172,54 @@ app.get('/api/ical', async (c) => {
   } catch (e) {
     return c.json({ error: e.message }, 500)
   }
+})
+
+// ── Stem Splitter proxy ────────────────────────────────────────────────────────
+app.post('/api/stems/split', async (c) => {
+  const contentType = c.req.header('content-type') || ''
+  let res
+  try {
+    res = await fetch(`${STEM_URL}/split`, {
+      method: 'POST',
+      body: c.req.raw.body,
+      headers: { 'content-type': contentType },
+      signal: AbortSignal.timeout(60_000),
+    })
+  } catch (err) {
+    return c.json({ error: `Stem service unreachable: ${err.message}` }, 502)
+  }
+  const data = await res.json()
+  return c.json(data, res.status)
+})
+
+app.get('/api/stems/status/:jobId', async (c) => {
+  let res
+  try {
+    res = await fetch(`${STEM_URL}/status/${c.req.param('jobId')}`, {
+      signal: AbortSignal.timeout(10_000),
+    })
+  } catch (err) {
+    return c.json({ error: err.message }, 502)
+  }
+  return c.json(await res.json(), res.status)
+})
+
+app.get('/api/stems/download/:jobId/:stem', async (c) => {
+  let res
+  try {
+    res = await fetch(`${STEM_URL}/download/${c.req.param('jobId')}/${c.req.param('stem')}`, {
+      signal: AbortSignal.timeout(30_000),
+    })
+  } catch (err) {
+    return c.json({ error: err.message }, 502)
+  }
+  if (!res.ok) return c.json(await res.json(), res.status)
+  return new Response(res.body, {
+    headers: {
+      'Content-Type': res.headers.get('content-type') || 'audio/mpeg',
+      'Content-Disposition': res.headers.get('content-disposition') || 'attachment',
+    },
+  })
 })
 
 // Billing — webhook must be raw text (Stripe signature verification)

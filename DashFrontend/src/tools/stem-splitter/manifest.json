@@ -1,0 +1,8 @@
+{
+  "id": "stem-splitter",
+  "name": "Stem Splitter",
+  "description": "Separate any song into vocals, drums, bass, and other stems using AI — powered by Demucs",
+  "icon": "🎛️",
+  "defaultSize": { "w": 5, "h": 10 },
+  "minSize": { "w": 4, "h": 8 }
+}
