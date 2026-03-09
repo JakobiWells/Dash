@@ -22,12 +22,17 @@ async function getFFmpeg(onProgress) {
   const { FFmpeg } = await import('@ffmpeg/ffmpeg')
   if (!_ffmpeg) {
     _ffmpeg = new FFmpeg()
-    _ffmpeg.on('progress', ({ progress }) => onProgress?.(Math.min(progress, 1)))
   }
+  // Re-register progress listener each time so the latest callback is used
+  _ffmpeg.off('progress')
+  _ffmpeg.on('progress', ({ progress }) => onProgress?.(Math.min(progress, 1)))
+
   if (!_ffmpeg.loaded) {
+    const { toBlobURL } = await import('@ffmpeg/util')
+    const base = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd'
     await _ffmpeg.load({
-      coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-      wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm',
+      coreURL: await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
     })
   }
   return _ffmpeg
@@ -91,7 +96,7 @@ export default function AudioExtractor() {
       await ff.deleteFile(inputName)
       await ff.deleteFile(outputName)
 
-      const blob = new Blob([data.buffer], { type: MIME[format] })
+      const blob = new Blob([data], { type: MIME[format] })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

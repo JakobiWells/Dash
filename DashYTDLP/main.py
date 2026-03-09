@@ -63,7 +63,7 @@ def download(req: DownloadRequest):
         "no_warnings": True,
         "format": fmt,
         "skip_download": True,
-        "extractor_args": {"youtube": {"player_client": ["android"]}},
+        "extractor_args": {"youtube": {"player_client": ["ios", "web"]}},
     }
     if _cookies_file:
         ydl_opts["cookiefile"] = _cookies_file

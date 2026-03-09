@@ -29,16 +29,26 @@ app.get('/api/media/download', async (c) => {
 
   const audioOnly = c.req.query('mode') === 'audio'
 
-  const res = await fetch(`${YTDLP_URL}/download`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      url: decodeURIComponent(sourceUrl),
-      audio_only: audioOnly,
-      quality: c.req.query('quality') || 'best',
-      audio_format: c.req.query('format') || 'mp3',
-    }),
-  })
+  let res
+  try {
+    res = await fetch(`${YTDLP_URL}/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: decodeURIComponent(sourceUrl),
+        audio_only: audioOnly,
+        quality: c.req.query('quality') || 'best',
+        audio_format: c.req.query('format') || 'mp3',
+      }),
+      signal: AbortSignal.timeout(120_000), // 2 min hard limit
+    })
+  } catch (err) {
+    const msg = err.name === 'TimeoutError'
+      ? 'Download service timed out'
+      : `Download service unreachable: ${err.message}`
+    console.error('GET /api/media/download fetch error:', err.message)
+    return c.json({ error: msg }, 502)
+  }
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
@@ -56,23 +66,30 @@ app.get('/api/media/download', async (c) => {
 // Media download — POST version (kept for programmatic use)
 app.post('/api/media/download', async (c) => {
   const body = await c.req.json()
-
-  if (!body.url) {
-    return c.json({ error: 'url is required' }, 400)
-  }
+  if (!body.url) return c.json({ error: 'url is required' }, 400)
 
   const audioOnly = body.downloadMode === 'audio'
 
-  const res = await fetch(`${YTDLP_URL}/download`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      url: body.url,
-      audio_only: audioOnly,
-      quality: body.videoQuality || 'best',
-      audio_format: body.audioFormat || 'mp3',
-    }),
-  })
+  let res
+  try {
+    res = await fetch(`${YTDLP_URL}/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: body.url,
+        audio_only: audioOnly,
+        quality: body.videoQuality || 'best',
+        audio_format: body.audioFormat || 'mp3',
+      }),
+      signal: AbortSignal.timeout(120_000), // 2 min hard limit
+    })
+  } catch (err) {
+    const msg = err.name === 'TimeoutError'
+      ? 'Download service timed out'
+      : `Download service unreachable: ${err.message}`
+    console.error('POST /api/media/download fetch error:', err.message)
+    return c.json({ error: msg }, 502)
+  }
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))

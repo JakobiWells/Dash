@@ -1,0 +1,8 @@
+{
+  "id": "key-bpm-detector",
+  "name": "Key & BPM Detector",
+  "description": "Detect the musical key and BPM of any audio file with a color-coded waveform and playback",
+  "icon": "🎵",
+  "defaultSize": { "w": 4, "h": 10 },
+  "minSize": { "w": 3, "h": 8 }
+}
