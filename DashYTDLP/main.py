@@ -54,9 +54,9 @@ def download(req: DownloadRequest):
     if req.audio_only:
         fmt = "bestaudio/best"
     elif req.quality in ("best", "max"):
-        fmt = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+        fmt = "bestvideo+bestaudio/best"
     else:
-        fmt = f"bestvideo[height<={req.quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={req.quality}][ext=mp4]/best"
+        fmt = f"bestvideo[height<={req.quality}]+bestaudio/best[height<={req.quality}]/best"
 
     ydl_opts = {
         "quiet": True,
