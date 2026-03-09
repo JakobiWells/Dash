@@ -10,6 +10,7 @@ const app = new Hono()
 
 const YTDLP_URL = process.env.YTDLP_URL || 'http://localhost:8000'
 const STEM_URL = process.env.STEM_URL || 'http://localhost:8001'
+const P2T_URL  = process.env.P2T_URL  || 'http://localhost:8002'
 const PORT = process.env.PORT || 3000
 
 // CORS — allow requests from Dash frontend
@@ -220,6 +221,23 @@ app.get('/api/stems/download/:jobId/:stem', async (c) => {
       'Content-Disposition': res.headers.get('content-disposition') || 'attachment',
     },
   })
+})
+
+// ── Pix2Text proxy ─────────────────────────────────────────────────────────────
+app.post('/api/p2t/convert', async (c) => {
+  const contentType = c.req.header('content-type') || ''
+  let res
+  try {
+    res = await fetch(`${P2T_URL}/convert`, {
+      method: 'POST',
+      body: c.req.raw.body,
+      headers: { 'content-type': contentType },
+      signal: AbortSignal.timeout(60_000),
+    })
+  } catch (err) {
+    return c.json({ error: `Pix2Text service unreachable: ${err.message}` }, 502)
+  }
+  return c.json(await res.json(), res.status)
 })
 
 // Billing — webhook must be raw text (Stripe signature verification)
