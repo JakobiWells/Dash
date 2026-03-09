@@ -79,27 +79,35 @@ def download(req: DownloadRequest):
 
         safe_title = re.sub(r'[^\w\s.-]', '_', title)[:200]
 
+        def pick_url(fmt):
+            return fmt.get("url") or fmt.get("manifest_url") if fmt else None
+
         if req.audio_only:
             codec = req.audio_format if req.audio_format != "best" else "mp3"
             mime = AUDIO_MIME.get(codec, "audio/mpeg")
-            source_url = info.get("url")
+            source_url = pick_url(info)
+            if not source_url:
+                raise HTTPException(status_code=500, detail="No audio URL in yt-dlp response")
             cmd = ["ffmpeg", "-i", source_url, "-vn", "-f", codec, "-"]
         else:
             mime = "video/mp4"
             codec = "mp4"
-            # Handle separate video+audio adaptive streams
-            requested = info.get("requested_formats")
-            if requested and len(requested) >= 2:
+            requested = info.get("requested_formats") or []
+            urls = [pick_url(f) for f in requested if f]
+            urls = [u for u in urls if u]
+            if len(urls) >= 2:
                 cmd = [
                     "ffmpeg",
-                    "-i", requested[0]["url"],
-                    "-i", requested[1]["url"],
+                    "-i", urls[0], "-i", urls[1],
                     "-c", "copy", "-f", "mp4",
                     "-movflags", "frag_keyframe+empty_moov", "-",
                 ]
             else:
+                direct_url = urls[0] if urls else pick_url(info)
+                if not direct_url:
+                    raise HTTPException(status_code=500, detail="No video URL in yt-dlp response")
                 cmd = [
-                    "ffmpeg", "-i", info.get("url"),
+                    "ffmpeg", "-i", direct_url,
                     "-c", "copy", "-f", "mp4",
                     "-movflags", "frag_keyframe+empty_moov", "-",
                 ]
