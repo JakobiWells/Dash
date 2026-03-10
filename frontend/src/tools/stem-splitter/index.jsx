@@ -45,7 +45,7 @@ export default function StemSplitter() {
 
     let data
     try {
-      const res = await fetch(`${API_BASE}/api/stems/split`, { method: 'POST', body: form, duplex: 'half' })
+      const res = await fetch(`${API_BASE}/api/stems/split`, { method: 'POST', body: form })
       data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Upload failed')
     } catch (err) {

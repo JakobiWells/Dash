@@ -185,6 +185,7 @@ app.post('/api/stems/split', async (c) => {
       body: c.req.raw.body,
       headers: { 'content-type': contentType },
       signal: AbortSignal.timeout(60_000),
+      duplex: 'half',
     })
   } catch (err) {
     return c.json({ error: `Stem service unreachable: ${err.message}` }, 502)
@@ -233,6 +234,7 @@ app.post('/api/p2t/convert', async (c) => {
       body: c.req.raw.body,
       headers: { 'content-type': contentType },
       signal: AbortSignal.timeout(60_000),
+      duplex: 'half',
     })
   } catch (err) {
     return c.json({ error: `Pix2Text service unreachable: ${err.message}` }, 502)
