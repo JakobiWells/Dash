@@ -1,0 +1,8 @@
+{
+  "id": "soundcloud",
+  "name": "SoundCloud",
+  "description": "Paste any SoundCloud URL to play tracks, playlists, or artist pages",
+  "icon": "🔊",
+  "defaultSize": { "w": 5, "h": 12 },
+  "minSize": { "w": 4, "h": 8 }
+}

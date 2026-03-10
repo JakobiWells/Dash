@@ -64,6 +64,40 @@ app.get('/api/music/token', (c) => {
   return c.json({ token })
 })
 
+// ── SoundCloud OAuth ──────────────────────────────────────────────────────────
+// Returns the public client_id so the frontend can build the auth redirect URL
+app.get('/api/sc/config', (c) => {
+  const clientId = process.env.SC_CLIENT_ID
+  if (!clientId) return c.json({ error: 'SoundCloud not configured' }, 503)
+  return c.json({ clientId })
+})
+
+// Exchanges an auth code for an access token (keeps client_secret on server)
+app.post('/api/sc/token', async (c) => {
+  const { code, redirectUri } = await c.req.json()
+  const clientId     = process.env.SC_CLIENT_ID
+  const clientSecret = process.env.SC_CLIENT_SECRET
+  if (!clientId || !clientSecret) return c.json({ error: 'SoundCloud not configured' }, 503)
+
+  try {
+    const res = await fetch('https://api.soundcloud.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json; charset=utf-8' },
+      body: new URLSearchParams({
+        client_id:     clientId,
+        client_secret: clientSecret,
+        redirect_uri:  redirectUri,
+        grant_type:    'authorization_code',
+        code,
+      }),
+    })
+    const data = await res.json()
+    return c.json(data, res.status)
+  } catch (err) {
+    return c.json({ error: err.message }, 502)
+  }
+})
+
 // Media download — GET version for native browser download with progress bar
 app.get('/api/media/download', async (c) => {
   const sourceUrl = c.req.query('url')
