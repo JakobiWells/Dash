@@ -1,7 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-import uuid, os, re, tempfile, shutil, subprocess, threading, time
+from audio_separator.separator import Separator
+import uuid, os, re, tempfile, shutil, threading, time
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -49,41 +50,45 @@ def _process(job_id: str, content: bytes, filename: str, stem_count: int):
         with open(infile, "wb") as f:
             f.write(content)
 
-        cmd = ["python", "-m", "demucs", "--mp3", "-n", "mdx", "-o", tmpdir]
-        if stem_count == 2:
-            cmd += ["--two-stems", "vocals"]
-        cmd.append(infile)
-
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
-        if result.stdout:
-            print(f"[demucs stdout] {result.stdout[-3000:]}", flush=True)
-        if result.stderr:
-            print(f"[demucs stderr] {result.stderr[-3000:]}", flush=True)
-        if result.returncode != 0:
-            raise RuntimeError(result.stderr[-2000:] or result.stdout[-2000:])
-
-        # Locate output directory: tmpdir/<model>/<basename>/
-        base = os.path.splitext(filename)[0]
-        out_stems = None
-        for model_dir in os.listdir(tmpdir):
-            candidate = os.path.join(tmpdir, model_dir, base)
-            if os.path.isdir(candidate):
-                out_stems = candidate
-                break
-
-        if not out_stems:
-            raise RuntimeError("Demucs output directory not found")
-
         stems = {}
-        for fname in os.listdir(out_stems):
-            if fname.endswith((".mp3", ".wav")):
-                name = os.path.splitext(fname)[0]
-                stems[name] = os.path.join(out_stems, fname)
+
+        if stem_count == 2:
+            # Fast ONNX model: vocals + instrumental
+            sep = Separator(output_dir=tmpdir, output_format="mp3", log_level=20)
+            sep.load_model("UVR-MDX-NET-Inst_HQ_3.onnx")
+            outputs = sep.separate(infile)
+            print(f"[separator 2-stem outputs] {outputs}", flush=True)
+            for path in outputs:
+                base = os.path.basename(path).lower()
+                if "vocal" in base:
+                    stems["vocals"] = path
+                elif "instrumental" in base or "no_vocals" in base:
+                    stems["no_vocals"] = path
+        else:
+            # 4-stem via htdemucs through audio-separator
+            sep = Separator(output_dir=tmpdir, output_format="mp3", log_level=20)
+            sep.load_model("htdemucs_4s.yaml")
+            outputs = sep.separate(infile)
+            print(f"[separator 4-stem outputs] {outputs}", flush=True)
+            for path in outputs:
+                base = os.path.basename(path).lower()
+                if "vocal" in base:
+                    stems["vocals"] = path
+                elif "drum" in base:
+                    stems["drums"] = path
+                elif "bass" in base:
+                    stems["bass"] = path
+                elif "other" in base or "guitar" in base or "piano" in base:
+                    stems["other"] = path
+
+        if not stems:
+            raise RuntimeError("No stem files found in separator output")
 
         JOBS[job_id]["status"] = "done"
         JOBS[job_id]["stems"] = stems
 
     except Exception as e:
+        print(f"[error] {e}", flush=True)
         JOBS[job_id]["status"] = "error"
         JOBS[job_id]["error"] = str(e)
 

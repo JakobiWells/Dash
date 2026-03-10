@@ -1,18 +1,16 @@
 FROM python:3.11-slim
 
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ffmpeg libsndfile1 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
 
-# Install CPU-only PyTorch first to avoid the massive CUDA build (~2.5 GB)
-RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-bake the htdemucs model into the image so it doesn't download at runtime
-RUN python -c "from demucs.pretrained import get_model; get_model('mdx')"
+# Pre-bake models so they don't download at runtime
+RUN python -c "from audio_separator.separator import Separator; s = Separator(); s.load_model('UVR-MDX-NET-Inst_HQ_3.onnx'); print('2-stem model loaded OK')"
+RUN python -c "from audio_separator.separator import Separator; s = Separator(); s.load_model('htdemucs_4s.yaml'); print('4-stem model loaded OK')"
 
 COPY . .
 
