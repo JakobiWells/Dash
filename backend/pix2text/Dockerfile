@@ -12,11 +12,7 @@ RUN pip install --no-cache-dir torch torchvision --index-url https://download.py
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-bake all models so they don't download at runtime
-RUN python -c "
-from pix2text import Pix2Text
-p2t = Pix2Text.from_config()
-print('pix2text models loaded OK')
-"
+RUN python -c "from pix2text import Pix2Text; p2t = Pix2Text.from_config(); print('pix2text models loaded OK')"
 
 COPY . .
 
