@@ -1,0 +1,8 @@
+{
+  "id": "formula-bank",
+  "name": "Formula Bank",
+  "description": "Comprehensive reference of mathematical and physics formulas with KaTeX rendering",
+  "icon": "∑",
+  "defaultSize": { "w": 9, "h": 13 },
+  "minSize": { "w": 6, "h": 8 }
+}

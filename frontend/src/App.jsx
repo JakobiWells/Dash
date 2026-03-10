@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import Grid from './shell/Grid'
 import AuthModal from './components/AuthModal'
 import UpgradeModal from './components/UpgradeModal'
@@ -59,6 +59,19 @@ export default function App() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [zoom, setZoom] = useState(1)
+  const zoomRef = useRef(1)
+  const mainRef = useRef(null)
+  const pendingScrollRef = useRef(null)
+  useEffect(() => { zoomRef.current = zoom }, [zoom])
+
+  // After zoom re-render, apply the pre-computed scroll adjustment
+  useLayoutEffect(() => {
+    const p = pendingScrollRef.current
+    if (!p) return
+    pendingScrollRef.current = null
+    p.el.scrollLeft = p.scrollLeft
+    window.scrollTo({ top: p.scrollTop, behavior: 'instant' })
+  }, [zoom])
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('dashpad-dark') === '1')
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('dashpad-api-key') ?? '')
   const [showKey, setShowKey] = useState(false)
@@ -86,7 +99,22 @@ export default function App() {
     function handleWheel(e) {
       if (!e.ctrlKey && !e.metaKey) return
       e.preventDefault()
-      setZoom(z => Math.min(2, Math.max(0.4, +(z - e.deltaY * 0.005).toFixed(2))))
+      const main = mainRef.current
+      if (!main) return
+      const z = zoomRef.current
+      const newZ = Math.min(2, Math.max(0.4, +(z - e.deltaY * 0.005).toFixed(2)))
+      if (newZ === z) return
+      // Capture cursor position in content space before zoom changes
+      const rect = main.getBoundingClientRect()
+      const cx = (e.clientX - rect.left + main.scrollLeft) / z
+      const cy = (e.clientY - rect.top + window.scrollY) / z
+      // Store scroll target — applied after React re-renders the new zoom
+      pendingScrollRef.current = {
+        el: main,
+        scrollLeft: Math.max(0, cx * newZ - (e.clientX - rect.left)),
+        scrollTop: Math.max(0, cy * newZ - (e.clientY - rect.top)),
+      }
+      setZoom(newZ)
     }
     function handleKeyDown(e) {
       if (!(e.metaKey || e.ctrlKey)) return
@@ -444,7 +472,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="overflow-x-auto">
+      <main ref={mainRef} className="overflow-x-auto">
         <div
           className="grid-bg"
           style={{

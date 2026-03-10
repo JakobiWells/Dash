@@ -1,0 +1,8 @@
+{
+  "id": "matrix-calc",
+  "name": "Matrix Calculator",
+  "description": "Add, multiply, invert, transpose, RREF with steps, determinant, eigenvalues and more",
+  "icon": "⊞",
+  "defaultSize": { "w": 9, "h": 14 },
+  "minSize": { "w": 7, "h": 10 }
+}

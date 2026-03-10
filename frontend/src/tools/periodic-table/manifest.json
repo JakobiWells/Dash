@@ -1,0 +1,8 @@
+{
+  "id": "periodic-table",
+  "name": "Periodic Table",
+  "description": "Interactive periodic table with element details, electron configurations, and category filtering",
+  "icon": "⚗️",
+  "defaultSize": { "w": 13, "h": 11 },
+  "minSize": { "w": 9, "h": 8 }
+}
