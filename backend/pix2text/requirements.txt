@@ -1,4 +1,5 @@
 fastapi
 uvicorn[standard]
+python-multipart
 pix2text>=1.1
 Pillow
