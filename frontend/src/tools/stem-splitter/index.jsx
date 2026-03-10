@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import ProgressBar from '../../shell/ProgressBar'
 
 const API_BASE = 'https://dash-production-3e07.up.railway.app'
 
@@ -137,14 +138,14 @@ export default function StemSplitter() {
       {(status === 'uploading' || status === 'processing') && (
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <Spinner />
-          <div className="text-center">
-            <p className="text-sm font-medium text-gray-700">
+          <div className="w-full flex flex-col gap-2">
+            <p className="text-sm font-medium text-gray-700 text-center">
               {status === 'uploading' ? 'Uploading…' : 'Splitting stems…'}
             </p>
             {status === 'processing' && (
               <>
-                <p className="text-xs text-gray-400 mt-1">{fmtTime(elapsed)} elapsed</p>
-                <p className="text-xs text-gray-300 mt-2">This takes 2–8 minutes.<br />You can leave this open.</p>
+                <ProgressBar estimatedMs={300_000} running={true} done={false} />
+                <p className="text-xs text-gray-400 text-center">{fmtTime(elapsed)} elapsed · typically 2–8 min</p>
               </>
             )}
           </div>

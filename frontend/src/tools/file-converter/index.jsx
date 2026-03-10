@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import ProgressBar from '../../shell/ProgressBar'
 import { convert, getCategory } from './converter'
 
 const CONVERSION_MAP = {
@@ -171,14 +172,9 @@ export default function FileConverter() {
       )}
       {status === 'converting' && (
         <div className="flex flex-col gap-1">
-          <div className="w-full bg-gray-100 rounded-full h-1.5">
-            <div
-              className="bg-gray-800 h-1.5 rounded-full transition-all duration-200"
-              style={{ width: `${Math.round(progress * 100)}%` }}
-            />
-          </div>
+          <ProgressBar progress={progress} label={`${Math.round(progress * 100)}%`} />
           <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
-            <Spinner />{Math.round(progress * 100)}%
+            <Spinner />Converting…
           </div>
         </div>
       )}

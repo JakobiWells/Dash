@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pyt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-bake the htdemucs model into the image so it doesn't download at runtime
-RUN python -c "from demucs.pretrained import get_model; get_model('htdemucs')"
+RUN python -c "from demucs.pretrained import get_model; get_model('mdx_extra')"
 
 COPY . .
 
