@@ -85,53 +85,56 @@ async function spotifyFetch(path, options = {}) {
   return res.json()
 }
 
+// Process Spotify callback at module load time — before React renders
+const _sp = new URLSearchParams(window.location.search)
+const _spCode     = _sp.get('code')
+const _spState    = _sp.get('state')
+const _spStored   = localStorage.getItem('spotify-pkce-state')
+const _spVerifier = localStorage.getItem('spotify-pkce-verifier')
+let _spotifyCallbackPromise = null
+
+if (_spCode && _spState && _spState === _spStored && _spVerifier) {
+  window.history.replaceState({}, '', window.location.pathname)
+  localStorage.removeItem('spotify-pkce-verifier')
+  localStorage.removeItem('spotify-pkce-state')
+  _spotifyCallbackPromise = fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: CLIENT_ID,
+      grant_type: 'authorization_code',
+      code: _spCode,
+      redirect_uri: REDIRECT_URI,
+      code_verifier: _spVerifier,
+    }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.access_token) {
+        const newAuth = {
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          expires_at: Date.now() + data.expires_in * 1000,
+        }
+        saveAuth(newAuth)
+        return newAuth
+      }
+      return null
+    })
+    .catch(() => null)
+}
+
 // --- Root component ---
 export default function SpotifyTool() {
   const [auth, setAuth] = useState(() => loadAuth())
-  const [callbackProcessing, setCallbackProcessing] = useState(false)
+  const [callbackProcessing, setCallbackProcessing] = useState(!!_spotifyCallbackPromise)
 
-  // Handle OAuth callback
+  // Resolve pending callback promise
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('code')
-    const state = params.get('state')
-    const storedState = localStorage.getItem('spotify-pkce-state')
-    const verifier = localStorage.getItem('spotify-pkce-verifier')
-
-    if (!code || !state || state !== storedState || !verifier) return
-
-    setCallbackProcessing(true)
-    window.history.replaceState({}, '', window.location.pathname)
-
-    fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: CLIENT_ID,
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: REDIRECT_URI,
-        code_verifier: verifier,
-      }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.access_token) {
-          const newAuth = {
-            access_token: data.access_token,
-            refresh_token: data.refresh_token,
-            expires_at: Date.now() + data.expires_in * 1000,
-          }
-          saveAuth(newAuth)
-          setAuth(newAuth)
-        }
-      })
-      .catch(console.error)
-      .finally(() => {
-        localStorage.removeItem('spotify-pkce-verifier')
-        localStorage.removeItem('spotify-pkce-state')
-        setCallbackProcessing(false)
-      })
+    if (!_spotifyCallbackPromise) return
+    _spotifyCallbackPromise
+      .then(newAuth => { if (newAuth) setAuth(newAuth) })
+      .finally(() => setCallbackProcessing(false))
   }, [])
 
   async function login() {

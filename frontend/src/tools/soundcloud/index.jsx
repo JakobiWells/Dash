@@ -23,6 +23,28 @@ function clearToken() {
   localStorage.removeItem('sc-oauth-state')
 }
 
+// Process the OAuth callback immediately at module load time — before React
+// renders or the cloud layout loads. This way the token exchange starts even
+// if the tile hasn't mounted yet.
+const _params  = new URLSearchParams(window.location.search)
+const _code    = _params.get('code')
+const _state   = _params.get('state')
+const _stored  = localStorage.getItem('sc-oauth-state')
+let _callbackPromise = null   // resolves to access_token string or null
+
+if (_code && _state && _state === _stored) {
+  window.history.replaceState({}, '', window.location.pathname)
+  localStorage.removeItem('sc-oauth-state')
+  _callbackPromise = fetch(`${API_BASE}/api/sc/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: _code, redirectUri: REDIRECT_URI }),
+  })
+    .then(r => r.json())
+    .then(d => { if (d.access_token) { saveToken(d.access_token) } return d.access_token ?? null })
+    .catch(() => null)
+}
+
 async function scFetch(path, token, params = {}) {
   const url = new URL(`${SC_API}${path}`)
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
@@ -46,42 +68,22 @@ export default function SoundCloud() {
   const [clientId, setClientId] = useState(null)
   const [token, setToken]       = useState(() => loadToken())
 
-  // Fetch SC config (client_id) from backend
+  // Fetch SC config + handle any pending callback promise
   useEffect(() => {
-    fetch(`${API_BASE}/api/sc/config`)
+    const configPromise = fetch(`${API_BASE}/api/sc/config`)
       .then(r => r.json())
-      .then(d => {
-        if (d.clientId) { setClientId(d.clientId); setStage(token ? 'ready' : 'login') }
-        else setStage('unconfigured')
+      .catch(() => null)
+
+    // If a callback is in flight, wait for both; otherwise just wait for config
+    Promise.all([configPromise, _callbackPromise ?? Promise.resolve(null)])
+      .then(([config, newToken]) => {
+        if (!config?.clientId) { setStage('unconfigured'); return }
+        setClientId(config.clientId)
+        const activeToken = newToken || loadToken()
+        if (activeToken) { setToken(activeToken); setStage('ready') }
+        else setStage('login')
       })
       .catch(() => setStage('unconfigured'))
-  }, [])
-
-  // Handle OAuth callback (?code=... in URL)
-  useEffect(() => {
-    const params   = new URLSearchParams(window.location.search)
-    const code     = params.get('code')
-    const state    = params.get('state')
-    const stored   = localStorage.getItem('sc-oauth-state')
-    if (!code || !state || state !== stored) return
-
-    window.history.replaceState({}, '', window.location.pathname)
-    localStorage.removeItem('sc-oauth-state')
-
-    fetch(`${API_BASE}/api/sc/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, redirectUri: REDIRECT_URI }),
-    })
-      .then(r => r.json())
-      .then(d => {
-        if (d.access_token) {
-          saveToken(d.access_token)
-          setToken(d.access_token)
-          setStage('ready')
-        }
-      })
-      .catch(console.error)
   }, [])
 
   function login() {
