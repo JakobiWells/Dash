@@ -1,0 +1,8 @@
+{
+  "id": "spotify",
+  "name": "Spotify",
+  "description": "Browse your Spotify library and control playback — log in with your Spotify account",
+  "icon": "🎧",
+  "defaultSize": { "w": 5, "h": 12 },
+  "minSize": { "w": 4, "h": 8 }
+}

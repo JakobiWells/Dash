@@ -10,6 +10,15 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 JOBS: dict = {}  # job_id -> {status, stems, outdir, created_at, error}
 MAX_FILE_MB = 150
 
+# Pre-load models at startup so the first request isn't slow
+print("Loading 2-stem model...", flush=True)
+SEP_2STEM = Separator(output_format="mp3", log_level=30)
+SEP_2STEM.load_model("UVR-MDX-NET-Inst_HQ_3.onnx")
+print("Loading 4-stem model...", flush=True)
+SEP_4STEM = Separator(output_format="mp3", log_level=30)
+SEP_4STEM.load_model("htdemucs_4s.yaml")
+print("Models ready.", flush=True)
+
 def _cleanup_loop():
     while True:
         cutoff = time.time() - 1800  # 30 min
@@ -52,34 +61,23 @@ def _process(job_id: str, content: bytes, filename: str, stem_count: int):
 
         stems = {}
 
-        if stem_count == 2:
-            # Fast ONNX model: vocals + instrumental
-            sep = Separator(output_dir=tmpdir, output_format="mp3", log_level=20)
-            sep.load_model("UVR-MDX-NET-Inst_HQ_3.onnx")
-            outputs = sep.separate(infile)
-            print(f"[separator 2-stem outputs] {outputs}", flush=True)
-            for path in outputs:
-                base = os.path.basename(path).lower()
-                if "vocal" in base:
-                    stems["vocals"] = path
-                elif "instrumental" in base or "no_vocals" in base:
-                    stems["no_vocals"] = path
-        else:
-            # 4-stem via htdemucs through audio-separator
-            sep = Separator(output_dir=tmpdir, output_format="mp3", log_level=20)
-            sep.load_model("htdemucs_4s.yaml")
-            outputs = sep.separate(infile)
-            print(f"[separator 4-stem outputs] {outputs}", flush=True)
-            for path in outputs:
-                base = os.path.basename(path).lower()
-                if "vocal" in base:
-                    stems["vocals"] = path
-                elif "drum" in base:
-                    stems["drums"] = path
-                elif "bass" in base:
-                    stems["bass"] = path
-                elif "other" in base or "guitar" in base or "piano" in base:
-                    stems["other"] = path
+        sep = SEP_2STEM if stem_count == 2 else SEP_4STEM
+        sep.output_dir = tmpdir
+        outputs = sep.separate(infile)
+        print(f"[separator outputs] {outputs}", flush=True)
+
+        for path in outputs:
+            base = os.path.basename(path).lower()
+            if "vocal" in base:
+                stems["vocals"] = path
+            elif "instrumental" in base or "no_vocals" in base:
+                stems["no_vocals"] = path
+            elif "drum" in base:
+                stems["drums"] = path
+            elif "bass" in base:
+                stems["bass"] = path
+            elif "other" in base or "guitar" in base or "piano" in base:
+                stems["other"] = path
 
         if not stems:
             raise RuntimeError("No stem files found in separator output")
