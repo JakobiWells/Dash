@@ -1,3 +1,4 @@
 fastapi
 uvicorn[standard]
+python-multipart
 demucs>=4.0.0
