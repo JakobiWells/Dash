@@ -49,7 +49,7 @@ def _process(job_id: str, content: bytes, filename: str, stem_count: int):
         with open(infile, "wb") as f:
             f.write(content)
 
-        cmd = ["python", "-m", "demucs", "--mp3", "-n", "mdx_extra", "--jobs", "4", "-o", tmpdir]
+        cmd = ["python", "-m", "demucs", "--mp3", "-n", "mdx_extra", "-o", tmpdir]
         if stem_count == 2:
             cmd += ["--two-stems", "vocals"]
         cmd.append(infile)
