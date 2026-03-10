@@ -55,8 +55,12 @@ def _process(job_id: str, content: bytes, filename: str, stem_count: int):
         cmd.append(infile)
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+        if result.stdout:
+            print(f"[demucs stdout] {result.stdout[-3000:]}", flush=True)
+        if result.stderr:
+            print(f"[demucs stderr] {result.stderr[-3000:]}", flush=True)
         if result.returncode != 0:
-            raise RuntimeError(result.stderr[-2000:])
+            raise RuntimeError(result.stderr[-2000:] or result.stdout[-2000:])
 
         # Locate output directory: tmpdir/<model>/<basename>/
         base = os.path.splitext(filename)[0]
