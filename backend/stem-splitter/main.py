@@ -49,12 +49,12 @@ def _process(job_id: str, content: bytes, filename: str, stem_count: int):
         with open(infile, "wb") as f:
             f.write(content)
 
-        cmd = ["python", "-m", "demucs", "--mp3", "-n", "mdx_extra", "-o", tmpdir]
+        cmd = ["python", "-m", "demucs", "--mp3", "-n", "mdx", "-o", tmpdir]
         if stem_count == 2:
             cmd += ["--two-stems", "vocals"]
         cmd.append(infile)
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
         if result.stdout:
             print(f"[demucs stdout] {result.stdout[-3000:]}", flush=True)
         if result.stderr:
