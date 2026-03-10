@@ -2,9 +2,42 @@ import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import { cors } from 'hono/cors'
 import { setDefaultResultOrder } from 'dns'
+import { createSign } from 'crypto'
 import { createCheckout, createPortal, handleWebhook } from './billing.js'
 import { createQR, listQR, getQRStats, getQR, updateQR, deleteQR, redirectQR } from './qr.js'
 setDefaultResultOrder('ipv4first')
+
+// Cache the MusicKit developer token so we don't re-sign on every request
+let _musicTokenCache = null
+
+function getMusicKitToken() {
+  const teamId = process.env.APPLE_TEAM_ID
+  const keyId  = process.env.APPLE_KEY_ID
+  // Railway stores multi-line env vars with literal \n — restore real newlines
+  const privateKey = process.env.APPLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+
+  if (!teamId || !keyId || !privateKey) return null
+
+  // Return cached token if still valid (> 1 hour left)
+  if (_musicTokenCache && _musicTokenCache.exp - Date.now() / 1000 > 3600) {
+    return _musicTokenCache.token
+  }
+
+  const now = Math.floor(Date.now() / 1000)
+  const exp = now + 15_552_000 // 180 days
+
+  const header  = Buffer.from(JSON.stringify({ alg: 'ES256', kid: keyId })).toString('base64url')
+  const payload = Buffer.from(JSON.stringify({ iss: teamId, iat: now, exp })).toString('base64url')
+  const input   = `${header}.${payload}`
+
+  const sign = createSign('SHA256')
+  sign.update(input)
+  const sig = sign.sign({ key: privateKey, dsaEncoding: 'ieee-p1363' }, 'base64url')
+
+  const token = `${input}.${sig}`
+  _musicTokenCache = { token, exp }
+  return token
+}
 
 const app = new Hono()
 
@@ -23,6 +56,13 @@ app.use('*', cors({
 
 // Health check
 app.get('/', (c) => c.json({ ok: true, service: 'Dash API' }))
+
+// MusicKit developer token — fetched by the Apple Music tile on load
+app.get('/api/music/token', (c) => {
+  const token = getMusicKitToken()
+  if (!token) return c.json({ error: 'Apple Music not configured' }, 503)
+  return c.json({ token })
+})
 
 // Media download — GET version for native browser download with progress bar
 app.get('/api/media/download', async (c) => {
