@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import ProgressBar from '../../shell/ProgressBar'
+import Spinner from '../../components/Spinner'
 
 const API_BASE = 'https://dash-production-3e07.up.railway.app'
 
@@ -182,14 +183,5 @@ export default function StemSplitter() {
       )}
 
     </div>
-  )
-}
-
-function Spinner() {
-  return (
-    <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24"
-      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 2a10 10 0 1 0 10 10" />
-    </svg>
   )
 }

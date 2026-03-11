@@ -1,8 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Spinner from '../../components/Spinner'
 
 const CLIENT_ID_KEY = 'gdrive-client-id'
 const TOKEN_KEY     = 'gdrive-token'
-const SCOPE         = 'https://www.googleapis.com/auth/drive.readonly'
+const SCOPE         = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file'
+
+const SECTIONS = [
+  { id: 'my-drive', label: 'My Drive' },
+  { id: 'shared',   label: 'Shared'   },
+  { id: 'recent',   label: 'Recent'   },
+  { id: 'starred',  label: 'Starred'  },
+]
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -69,15 +77,31 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-async function driveList(token, folderId, search) {
-  const q = search
-    ? `name contains '${search.replace(/'/g, "\\'")}' and trashed = false`
-    : `'${folderId}' in parents and trashed = false`
+async function driveList(token, section, folderId, search) {
+  let q, orderBy
+
+  if (search) {
+    q = `name contains '${search.replace(/'/g, "\\'")}' and trashed = false`
+    orderBy = 'folder,name'
+  } else if (section === 'my-drive') {
+    q = `'${folderId}' in parents and trashed = false`
+    orderBy = 'folder,name'
+  } else if (section === 'shared') {
+    q = 'sharedWithMe=true and trashed=false'
+    orderBy = 'sharedWithMeTime desc'
+  } else if (section === 'recent') {
+    q = 'trashed=false'
+    orderBy = 'recency desc'
+  } else {
+    // starred
+    q = 'starred=true and trashed=false'
+    orderBy = 'folder,name'
+  }
 
   const url = new URL('https://www.googleapis.com/drive/v3/files')
   url.searchParams.set('q', q)
   url.searchParams.set('fields', 'files(id,name,mimeType,modifiedTime,size,webViewLink)')
-  url.searchParams.set('orderBy', 'folder,name')
+  url.searchParams.set('orderBy', orderBy)
   url.searchParams.set('pageSize', '100')
 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
@@ -85,6 +109,23 @@ async function driveList(token, folderId, search) {
   const data = await res.json()
   if (data.error) throw new Error(data.error.message)
   return data.files || []
+}
+
+async function uploadToDrive(token, folderId, file) {
+  const metadata = { name: file.name }
+  if (folderId !== 'root') metadata.parents = [folderId]
+
+  const form = new FormData()
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
+  form.append('file', file)
+
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form }
+  )
+  if (res.status === 403) throw new Error('PERMISSION_DENIED')
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+  return res.json()
 }
 
 // ── Setup screen ───────────────────────────────────────────────────────────
@@ -184,17 +225,21 @@ function SetupScreen({ onSave }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export default function GoogleDrive() {
+export default function GoogleDrive({ instanceId }) {
   const [clientId, setClientId] = useState(() => localStorage.getItem(CLIENT_ID_KEY) || '')
   const [token, setToken]       = useState(() => getSavedToken())
   const [files, setFiles]       = useState([])
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState(null)
+  const [section, setSection]   = useState('my-drive')
   const [folder, setFolder]     = useState([{ id: 'root', name: 'My Drive' }]) // breadcrumb stack
   const [search, setSearch]     = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const [uploading, setUploading]     = useState(false)
+  const [fileDragOver, setFileDragOver] = useState(false)
   const tokenClientRef = useRef(null)
   const searchTimerRef = useRef(null)
+  const listRef        = useRef(null)
 
   const currentFolder = folder[folder.length - 1]
 
@@ -218,12 +263,12 @@ export default function GoogleDrive() {
   }, [clientId, initTokenClient])
 
   // ── Load files ──────────────────────────────────────────────────────────
-  const loadFiles = useCallback(async (tok, folderId, searchQuery) => {
+  const loadFiles = useCallback(async (tok, sec, folderId, searchQuery) => {
     if (!tok) return
     setLoading(true)
     setError(null)
     try {
-      const data = await driveList(tok, folderId, searchQuery)
+      const data = await driveList(tok, sec, folderId, searchQuery)
       setFiles(data)
     } catch (err) {
       if (err.message === 'TOKEN_EXPIRED') {
@@ -239,8 +284,55 @@ export default function GoogleDrive() {
   }, [])
 
   useEffect(() => {
-    if (token) loadFiles(token, currentFolder.id, search)
-  }, [token, currentFolder.id, search]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (token) loadFiles(token, section, currentFolder.id, search)
+  }, [token, section, currentFolder.id, search]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── dash:drive-navigate — jump to a specific folder ─────────────────────
+  useEffect(() => {
+    function onNavigate(e) {
+      if (e.detail?.instanceId !== instanceId) return
+      const { folderId, folderName } = e.detail
+      setSection('my-drive')
+      setFolder([{ id: 'root', name: 'My Drive' }, { id: folderId, name: folderName }])
+      setSearch('')
+      setSearchInput('')
+    }
+    window.addEventListener('dash:drive-navigate', onNavigate)
+    return () => window.removeEventListener('dash:drive-navigate', onNavigate)
+  }, [instanceId])
+
+  // ── Upload drop listener (Grid forwards file drops via custom event) ────
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+    function onFileDrop(e) {
+      const droppedFiles = e.detail?.files
+      if (!droppedFiles?.length || !token) return
+      handleUpload(Array.from(droppedFiles))
+    }
+    el.addEventListener('filedrop', onFileDrop)
+    return () => el.removeEventListener('filedrop', onFileDrop)
+  }) // no dep array — re-bind after each render so token/currentFolder.id are fresh
+
+  async function handleUpload(filesToUpload) {
+    if (!token) return
+    setUploading(true)
+    setError(null)
+    try {
+      for (const file of filesToUpload) {
+        await uploadToDrive(token, currentFolder.id, file)
+      }
+      loadFiles(token, section, currentFolder.id, search)
+    } catch (err) {
+      if (err.message === 'PERMISSION_DENIED') {
+        setError('Re-connect to enable uploads (needs drive.file permission).')
+      } else {
+        setError(err.message)
+      }
+    } finally {
+      setUploading(false)
+    }
+  }
 
   // ── Handlers ────────────────────────────────────────────────────────────
   function handleSaveClientId(id) {
@@ -262,6 +354,7 @@ export default function GoogleDrive() {
     setFolder([{ id: 'root', name: 'My Drive' }])
     setSearch('')
     setSearchInput('')
+    setSection('my-drive')
   }
 
   function forgetAccount() {
@@ -282,6 +375,13 @@ export default function GoogleDrive() {
     setSearchInput('')
   }
 
+  function handleSectionChange(id) {
+    setSection(id)
+    setFolder([{ id: 'root', name: 'My Drive' }])
+    setSearch('')
+    setSearchInput('')
+  }
+
   function handleSearchChange(e) {
     const val = e.target.value
     setSearchInput(val)
@@ -290,7 +390,41 @@ export default function GoogleDrive() {
   }
 
   function refresh() {
-    loadFiles(token, currentFolder.id, search)
+    loadFiles(token, section, currentFolder.id, search)
+  }
+
+  // ── Drag FROM Drive TO Dashboard ────────────────────────────────────────
+  function handleDragStart(e, file) {
+    const isFolder = file.mimeType === 'application/vnd.google-apps.folder'
+    window.__driveFileDrag = { id: file.id, name: file.name, mimeType: file.mimeType, token, isFolder, href: file.webViewLink }
+    e.dataTransfer.setData('text/plain', file.name)
+    e.dataTransfer.effectAllowed = 'copy'
+  }
+
+  function handleDragEnd() {
+    window.__driveFileDrag = null
+  }
+
+  // ── Drag local files OVER the tool (for upload) ─────────────────────────
+  function handleListDragOver(e) {
+    // Only activate upload overlay for real local files, not Drive-to-Dashboard drags
+    if (e.dataTransfer.types.includes('Files') && section === 'my-drive') {
+      e.preventDefault()
+      setFileDragOver(true)
+    }
+  }
+
+  function handleListDragLeave(e) {
+    if (!listRef.current?.contains(e.relatedTarget)) {
+      setFileDragOver(false)
+    }
+  }
+
+  function handleListDrop(e) {
+    e.preventDefault()
+    setFileDragOver(false)
+    const dropped = Array.from(e.dataTransfer.files)
+    if (dropped.length) handleUpload(dropped)
   }
 
   // ── Render: setup ───────────────────────────────────────────────────────
@@ -347,8 +481,25 @@ export default function GoogleDrive() {
         <button onClick={disconnect} title="Disconnect" className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer shrink-0">Sign out</button>
       </div>
 
-      {/* Breadcrumb */}
-      {!search && (
+      {/* Section tabs */}
+      <div className="flex items-center gap-0.5 px-3 pb-2 shrink-0">
+        {SECTIONS.map(s => (
+          <button
+            key={s.id}
+            onClick={() => handleSectionChange(s.id)}
+            className={`px-2.5 py-1 text-xs rounded-lg cursor-pointer transition-colors ${
+              section === s.id
+                ? 'bg-blue-50 text-blue-600 font-semibold'
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Breadcrumb — only for My Drive */}
+      {section === 'my-drive' && !search && (
         <div className="flex items-center gap-1 px-3 pb-1 shrink-0 overflow-x-auto">
           {folder.map((f, i) => (
             <span key={f.id} className="flex items-center gap-1 shrink-0">
@@ -373,8 +524,31 @@ export default function GoogleDrive() {
         </div>
       )}
 
-      {/* File list */}
-      <div className="flex-1 overflow-y-auto px-2 pb-2 min-h-0">
+      {/* Uploading indicator */}
+      {uploading && (
+        <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 pb-1 shrink-0">
+          <Spinner />Uploading…
+        </div>
+      )}
+
+      {/* File list — also the drop target for upload */}
+      <div
+        ref={listRef}
+        data-file-drop-target
+        className={`flex-1 overflow-y-auto px-2 pb-2 min-h-0 relative transition-colors ${fileDragOver ? 'bg-blue-50/60' : ''}`}
+        onDragOver={handleListDragOver}
+        onDragLeave={handleListDragLeave}
+        onDrop={handleListDrop}
+      >
+        {/* Upload drop overlay label */}
+        {fileDragOver && section === 'my-drive' && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+            <div className="bg-blue-500 text-white text-xs font-medium px-4 py-2 rounded-xl shadow-lg">
+              Drop to upload to {currentFolder.name}
+            </div>
+          </div>
+        )}
+
         {loading && (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">Loading…</div>
         )}
@@ -398,6 +572,9 @@ export default function GoogleDrive() {
               return (
                 <button
                   key={file.id}
+                  draggable={true}
+                  onDragStart={(e) => handleDragStart(e, file)}
+                  onDragEnd={handleDragEnd}
                   onClick={() => isFolder ? openFolder(file) : window.open(file.webViewLink, '_blank')}
                   className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors text-left group"
                 >

@@ -1,13 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { PDFDocument } from 'pdf-lib'
-
-function Spinner() {
-  return (
-    <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 2a10 10 0 1 0 10 10" />
-    </svg>
-  )
-}
+import Spinner from '../../components/Spinner'
 
 async function renderFirstPageThumb(fileRaw, thumbWidth = 48) {
   const pdfjs = await import('pdfjs-dist')

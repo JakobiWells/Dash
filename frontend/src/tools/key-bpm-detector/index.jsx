@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import Spinner from '../../components/Spinner'
 
 // ─── Signal Processing ────────────────────────────────────────────────────────
 
@@ -192,6 +193,7 @@ export default function KeyBpmDetector() {
   const bufferRef     = useRef(null)   // AudioBuffer
   const sourceRef     = useRef(null)   // AudioBufferSourceNode
   const rafRef        = useRef(null)
+  const outerRef      = useRef(null)
 
   // Playback tracking refs (no re-render needed)
   const startTimeRef  = useRef(0)  // audioCtx.currentTime when play started
@@ -430,6 +432,15 @@ export default function KeyBpmDetector() {
 
   const onDrop = (e) => { e.preventDefault(); setDragging(false); processFile(e.dataTransfer.files?.[0]) }
 
+  // Grid overlay file-drop integration
+  useEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+    function onFileDrop(e) { const f = e.detail?.files?.[0]; if (f) processFile(f) }
+    el.addEventListener('filedrop', onFileDrop)
+    return () => el.removeEventListener('filedrop', onFileDrop)
+  }, [processFile])
+
   // Cleanup
   useEffect(() => () => { stopPlayback(); audioCtxRef.current?.close() }, [stopPlayback])
 
@@ -440,7 +451,7 @@ export default function KeyBpmDetector() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="h-full flex flex-col gap-2.5 min-h-0">
+    <div ref={outerRef} data-file-drop-target className="h-full flex flex-col gap-2.5 min-h-0">
 
       {/* Drop zone */}
       <div
@@ -604,16 +615,5 @@ function TapTempo() {
       </button>
       <span className="text-sm font-bold text-gray-700 w-16 text-center">{bpm ? `${bpm} BPM` : '— BPM'}</span>
     </div>
-  )
-}
-
-// ─── Spinner ─────────────────────────────────────────────────────────────────
-
-function Spinner() {
-  return (
-    <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24"
-      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 2a10 10 0 1 0 10 10" />
-    </svg>
   )
 }

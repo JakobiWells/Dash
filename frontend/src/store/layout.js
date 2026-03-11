@@ -1,22 +1,16 @@
 import { supabase } from '../lib/supabase'
+import { loadJSON, saveJSON } from '../lib/localStorage'
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
 
 const STORAGE_KEY = 'toolbox-layout'
 
 export function loadLayout() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    return saved ? JSON.parse(saved) : null
-  } catch {
-    return null
-  }
+  return loadJSON(STORAGE_KEY, null)
 }
 
 export function saveLayout(layout) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout))
-  } catch {}
+  saveJSON(STORAGE_KEY, layout)
 }
 
 // ── Cloud layout CRUD ─────────────────────────────────────────────────────────

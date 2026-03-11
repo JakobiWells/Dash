@@ -6,12 +6,13 @@ import FileCard from './FileCard'
 import WelcomeCard from './WelcomeCard'
 import AddToolModal from './AddToolModal'
 import { useAuth } from '../context/AuthContext'
+import { useDashFiles } from '../context/FileContext'
 
 // Must match background-size in index.css
 const CELL = 32
 // Extra columns/rows always available beyond the rightmost/lowest tool
-const EXTRA_COLS = 20
-const EXTRA_ROWS = 20
+const EXTRA_COLS = 500
+const EXTRA_ROWS = 500
 
 function snapWidth(raw) {
   return Math.floor(raw / CELL) * CELL
@@ -53,8 +54,77 @@ function buildFirstVisitLayout() {
   }).filter(Boolean)
 }
 
+// Convert the current browser viewport to grid cell coordinates
+function getViewportGridBounds(container, zoom) {
+  if (!container) return null
+  const rect = container.getBoundingClientRect()
+  const cellPx = CELL * zoom
+  const minX = Math.max(0, Math.floor(-rect.left / cellPx))
+  const minY = Math.max(0, Math.floor(-rect.top / cellPx))
+  const maxX = minX + Math.floor(window.innerWidth / cellPx)
+  const maxY = minY + Math.floor(window.innerHeight / cellPx)
+  return { minX, minY, maxX, maxY }
+}
+
+// Scan for the first (topmost, leftmost) clear rectangle of size w×h in the layout.
+// If viewportBounds is provided, search within the visible area first.
+// The x range is always capped to the viewport's right edge so tools never appear off-screen to the right.
+function findFreeSpace(layout, w, h, cols = 500, viewportBounds = null) {
+  // Cap x so tools never land beyond the viewport's right edge (right space is reserved for zoom-out)
+  const xCap = viewportBounds
+    ? Math.max(0, Math.min(viewportBounds.maxX - w, cols - w))
+    : Math.max(0, cols - w)
+
+  // 1. Try to fit entirely within the current viewport
+  if (viewportBounds) {
+    const { minX, minY, maxX, maxY } = viewportBounds
+    const xMax = Math.min(maxX - w, cols - w)
+    const yMax = maxY - h
+    if (xMax >= minX && yMax >= minY) {
+      for (let y = minY; y <= yMax; y++) {
+        for (let x = minX; x <= xMax; x++) {
+          const clear = !layout.some(item =>
+            item.x < x + w && item.x + item.w > x &&
+            item.y < y + h && item.y + item.h > y
+          )
+          if (clear) return { x, y }
+        }
+      }
+    }
+  }
+  // 2. Fall back: scan the full layout top→bottom, but keep x within the viewport's width
+  const maxY = layout.reduce((m, item) => Math.max(m, item.y + item.h), 0)
+  for (let y = 0; y <= maxY; y++) {
+    for (let x = 0; x <= xCap; x++) {
+      const clear = !layout.some(item =>
+        item.x < x + w && item.x + item.w > x &&
+        item.y < y + h && item.y + item.h > y
+      )
+      if (clear) return { x, y }
+    }
+  }
+  return { x: 0, y: maxY } // last resort: below everything
+}
+
 function loadSaved() {
-  try { const s = localStorage.getItem(LAYOUT_KEY); return s ? JSON.parse(s) : null } catch { return null }
+  try {
+    const s = localStorage.getItem(LAYOUT_KEY)
+    if (!s) return null
+    const parsed = JSON.parse(s)
+    // Restore any items whose sizes were corrupted below their tool's minSize
+    // (react-grid-layout can emit 1×1 on initial mount before constraints apply)
+    return parsed.map(item => {
+      const toolId = item.i.split('__')[0]
+      const tool = ALL_TOOLS.find(t => t.id === toolId)
+      if (!tool) return item
+      const minW = tool.minSize?.w ?? 1
+      const minH = tool.minSize?.h ?? 1
+      if (item.w < minW || item.h < minH) {
+        return { ...item, w: tool.defaultSize?.w ?? minW, h: tool.defaultSize?.h ?? minH }
+      }
+      return item
+    })
+  } catch { return null }
 }
 function saveSaved(layout) {
   // Never persist file or welcome items
@@ -68,8 +138,35 @@ function saveActiveIds(ids) {
   try { localStorage.setItem(ACTIVE_KEY, JSON.stringify(ids)) } catch {}
 }
 
+// Google Workspace mimeTypes that must be exported (cannot be downloaded directly)
+const WORKSPACE_EXPORT_MAP = {
+  'application/vnd.google-apps.document':     'application/pdf',
+  'application/vnd.google-apps.spreadsheet':  'application/pdf',
+  'application/vnd.google-apps.presentation': 'application/pdf',
+  'application/vnd.google-apps.drawing':      'application/pdf',
+}
+
+async function downloadDriveFile(id, mimeType, name, token) {
+  const exportMime = WORKSPACE_EXPORT_MAP[mimeType]
+  let url, fileName
+
+  if (exportMime) {
+    url = `https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=${encodeURIComponent(exportMime)}`
+    fileName = name.endsWith('.pdf') ? name : `${name}.pdf`
+  } else {
+    url = `https://www.googleapis.com/drive/v3/files/${id}?alt=media`
+    fileName = name
+  }
+
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error(`Drive download failed: ${res.status}`)
+  const blob = await res.blob()
+  return { blob, fileName, type: exportMime || mimeType }
+}
+
 const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1, onStateChange }, ref) {
   const { user, loading } = useAuth()
+  const { files: dashFiles, addFile, removeFile: removeDashFile } = useDashFiles()
   const containerRef = useRef(null)
   const [windowWidth, setWindowWidth] = useState(() => snapWidth(window.innerWidth))
 
@@ -94,8 +191,6 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
     if (saved !== null) return saved
     return buildFirstVisitLayout()
   })
-
-  const [fileItems, setFileItems] = useState([])
 
   // Dynamic grid size: always extends EXTRA_COLS/EXTRA_ROWS beyond the last tool
   const toolsRightEdge = layout.reduce((m, item) => Math.max(m, item.x + item.w), 0)
@@ -141,12 +236,19 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
 
   const onLayoutChange = useCallback((newLayout) => {
     setLayout(newLayout)
-    saveSaved(newLayout)
+    // Guard: skip saving if any tool item is below its manifest minSize
+    // (react-grid-layout can emit shrunken sizes on initial mount)
+    const corrupted = newLayout.some(item => {
+      if (item.i.startsWith('file__') || item.i.startsWith('welcome__')) return false
+      const tool = ALL_TOOLS.find(t => t.id === item.i.split('__')[0])
+      if (!tool) return false
+      return item.w < (tool.minSize?.w ?? 1) || item.h < (tool.minSize?.h ?? 1)
+    })
+    if (!corrupted) saveSaved(newLayout)
   }, [])
 
   const dismissWelcome = useCallback(() => {
     setWelcomeDismissed(true)
-    // layout update is handled by the showWelcome effect above
   }, [])
 
   const removeTool = useCallback((instanceId) => {
@@ -162,14 +264,21 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
     })
   }, [])
 
+  // colsRef / zoomRef keep dynamic values in sync for callbacks without stale closures
+  const colsRef = useRef(cols)
+  useEffect(() => { colsRef.current = cols }, [cols])
+  const zoomRef = useRef(zoom)
+  useEffect(() => { zoomRef.current = zoom }, [zoom])
+
   const addTool = useCallback((toolId) => {
     const tool = ALL_TOOLS.find((t) => t.id === toolId)
     const instanceId = `${toolId}__${Date.now()}`
     const w = tool?.defaultSize?.w ?? 10
     const h = tool?.defaultSize?.h ?? 8
+    const vp = getViewportGridBounds(containerRef.current, zoomRef.current)
     setLayout((prev) => {
-      const maxY = prev.reduce((m, item) => Math.max(m, item.y + item.h), 0)
-      const newItem = { i: instanceId, x: 0, y: maxY, w, h, minW: tool?.minSize?.w ?? 4, minH: tool?.minSize?.h ?? 4 }
+      const { x, y } = findFreeSpace(prev, w, h, colsRef.current, vp)
+      const newItem = { i: instanceId, x, y, w, h, minW: tool?.minSize?.w ?? 4, minH: tool?.minSize?.h ?? 4 }
       const updated = [...prev, newItem]
       saveSaved(updated)
       return updated
@@ -180,6 +289,7 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
       return next
     })
     setShowAddModal(false)
+    return instanceId
   }, [setShowAddModal])
 
   // Allow any tool to programmatically add a new card via:
@@ -190,34 +300,127 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
     return () => window.removeEventListener('dash:add-tool', handler)
   }, [addTool])
 
-  const removeFileItem = useCallback((id) => {
-    setFileItems((prev) => {
-      const item = prev.find((f) => f.id === id)
-      if (item?.objectUrl) URL.revokeObjectURL(item.objectUrl)
-      return prev.filter((f) => f.id !== id)
-    })
-    setLayout((prev) => prev.filter((item) => item.i !== id))
-  }, [])
+  // ── dash:open-file — open a dashboard file in a tool ──────────────────────
+  // Dispatched by FileCard with { file: {name,type,size,objectUrl}, toolId }
+  const activeIdsRef = useRef(activeIds)
+  useEffect(() => { activeIdsRef.current = activeIds }, [activeIds])
 
-  // Show an invisible full-screen overlay the moment files enter the window.
+  useEffect(() => {
+    async function onOpenFile(e) {
+      const { file, toolId } = e.detail
+      if (!file || !toolId) return
+
+      // Find existing instance or create a new one
+      let instanceId = activeIdsRef.current.find(id => id.startsWith(toolId + '__'))
+      const isNew = !instanceId
+      if (isNew) {
+        const tool = ALL_TOOLS.find(t => t.id === toolId)
+        instanceId = `${toolId}__${Date.now()}`
+        const w = tool?.defaultSize?.w ?? 10
+        const h = tool?.defaultSize?.h ?? 8
+        const vp = getViewportGridBounds(containerRef.current, zoomRef.current)
+        setLayout(prev => {
+          const { x, y } = findFreeSpace(prev, w, h, colsRef.current, vp)
+          const newItem = { i: instanceId, x, y, w, h, minW: tool?.minSize?.w ?? 4, minH: tool?.minSize?.h ?? 4 }
+          saveSaved([...prev, newItem])
+          return [...prev, newItem]
+        })
+        setActiveIds(prev => {
+          const next = [...prev, instanceId]
+          saveActiveIds(next)
+          return next
+        })
+      }
+
+      // Wait for tool to mount if new, then forward the file
+      const delay = isNew ? 300 : 0
+      setTimeout(async () => {
+        const wrapper = document.querySelector(`[data-instance-id="${instanceId}"]`)
+        const target = wrapper?.querySelector('[data-file-drop-target]')
+        if (!target) return
+        try {
+          const res = await fetch(file.objectUrl)
+          const blob = await res.blob()
+          const fileObj = new File([blob], file.name, { type: file.type || blob.type })
+          target.dispatchEvent(new CustomEvent('filedrop', { detail: { files: [fileObj] }, bubbles: true }))
+        } catch (err) {
+          console.error('dash:open-file delivery failed:', err)
+        }
+      }, delay)
+    }
+
+    window.addEventListener('dash:open-file', onOpenFile)
+    return () => window.removeEventListener('dash:open-file', onOpenFile)
+  }, []) // intentionally empty — uses refs for activeIds
+
+  // ── dash:open-drive-folder — open a Drive folder in a Drive tool ───────────
+  useEffect(() => {
+    function onOpenFolder(e) {
+      const { folderId, folderName } = e.detail || {}
+      if (!folderId) return
+
+      // Find existing google-drive instance or create one
+      let instanceId = activeIdsRef.current.find(id => id.startsWith('google-drive__'))
+      const isNew = !instanceId
+      if (isNew) {
+        const tool = ALL_TOOLS.find(t => t.id === 'google-drive')
+        instanceId = `google-drive__${Date.now()}`
+        const w = tool?.defaultSize?.w ?? 10
+        const h = tool?.defaultSize?.h ?? 8
+        const vp = getViewportGridBounds(containerRef.current, zoomRef.current)
+        setLayout(prev => {
+          const { x, y } = findFreeSpace(prev, w, h, colsRef.current, vp)
+          const newItem = { i: instanceId, x, y, w, h, minW: tool?.minSize?.w ?? 4, minH: tool?.minSize?.h ?? 4 }
+          saveSaved([...prev, newItem])
+          return [...prev, newItem]
+        })
+        setActiveIds(prev => {
+          const next = [...prev, instanceId]
+          saveActiveIds(next)
+          return next
+        })
+      }
+
+      // After mount (if new), tell the Drive tool to navigate to the folder
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('dash:drive-navigate', {
+          detail: { instanceId, folderId, folderName }
+        }))
+      }, isNew ? 400 : 0)
+    }
+
+    window.addEventListener('dash:open-drive-folder', onOpenFolder)
+    return () => window.removeEventListener('dash:open-drive-folder', onOpenFolder)
+  }, []) // intentionally empty — uses refs for activeIds
+
+  const removeFileItem = useCallback((id) => {
+    removeDashFile(id) // context handles objectUrl revocation
+    setLayout((prev) => prev.filter((item) => item.i !== id))
+  }, [removeDashFile])
+
+  // Show an invisible full-screen overlay the moment files (or a Drive drag) enter the window.
   // The overlay sits above all tool cards, so it always receives the drop —
   // no risk of inner elements (inputs, textareas, etc.) swallowing the event.
   const [fileDragActive, setFileDragActive] = useState(false)
 
   useEffect(() => {
     function onDragEnter(e) {
-      if (e.dataTransfer.types.includes('Files')) setFileDragActive(true)
+      // Don't activate when dragging into an open folder window — let it handle its own drops
+      if (e.target?.closest?.('[data-folder-window]')) return
+      if (e.dataTransfer.types.includes('Files') || window.__driveFileDrag) {
+        setFileDragActive(true)
+      }
     }
     document.addEventListener('dragenter', onDragEnter)
     return () => document.removeEventListener('dragenter', onDragEnter)
   }, [])
 
-  function handleOverlayDrop(e) {
+  async function handleOverlayDrop(e) {
     e.preventDefault()
     setFileDragActive(false)
 
-    const files = Array.from(e.dataTransfer.files)
-    if (!files.length) return
+    // If dropped over an open folder window, let it handle the drop
+    if (document.elementsFromPoint(e.clientX, e.clientY).some(el => el.closest?.('[data-folder-window]'))) return
 
     const container = containerRef.current
     if (!container) return
@@ -228,13 +431,40 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
     const dropY = Math.max(0, Math.floor((e.clientY - rect.top) / (CELL * zoom)))
     const now = Date.now()
 
-    const newFileItems = files.map((file, i) => ({
-      id: `file__${now + i}`,
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      objectUrl: URL.createObjectURL(file),
-    }))
+    // ── Drive-to-Dashboard drop ──────────────────────────────────────────
+    const driveDrag = window.__driveFileDrag
+    if (driveDrag) {
+      window.__driveFileDrag = null
+      const fileId = `file__${now}`
+
+      if (driveDrag.isFolder) {
+        // Folder shortcut — no download, just store a link card
+        addFile({ id: fileId, name: driveDrag.name, type: 'application/x-drive-folder', size: 0, objectUrl: null, href: driveDrag.href, driveId: driveDrag.id })
+      } else {
+        try {
+          const { blob, fileName, type } = await downloadDriveFile(
+            driveDrag.id, driveDrag.mimeType, driveDrag.name, driveDrag.token
+          )
+          addFile({ id: fileId, name: fileName, type, size: blob.size, objectUrl: URL.createObjectURL(blob) })
+        } catch (err) {
+          console.error('Drive download failed:', err)
+          return
+        }
+      }
+
+      setLayout(prev => {
+        const w = 4, h = 5
+        const x = Math.min(dropX, Math.max(0, colsRef.current - w))
+        let y = dropY
+        while (prev.some(li => li.x < x + w && li.x + li.w > x && li.y < y + h && li.y + li.h > y)) y++
+        return [...prev, { i: fileId, x, y, w, h, minW: 3, minH: 4 }]
+      })
+      return
+    }
+
+    // ── Local file drop ──────────────────────────────────────────────────
+    const files = Array.from(e.dataTransfer.files)
+    if (!files.length) return
 
     // Check if the cursor is over a tool's own file drop zone.
     // If so, forward the files there via a custom event instead of placing icons.
@@ -245,14 +475,20 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
       return
     }
 
-    setFileItems((prev) => [...prev, ...newFileItems])
+    const newFiles = files.map((file, i) => ({
+      id: `file__${now + i}`,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      objectUrl: URL.createObjectURL(file),
+    }))
+
+    newFiles.forEach(f => addFile(f))
     setLayout((prev) => {
       const placed = []
-      const additions = newFileItems.map((item, i) => {
+      const additions = newFiles.map((item, i) => {
         const w = 4, h = 5
-        const x = Math.min(dropX + i * 4, Math.max(0, cols - w))
-        // Bump y down until this item doesn't overlap any existing item or
-        // previously placed file in this same drop batch
+        const x = Math.min(dropX + i * 4, Math.max(0, colsRef.current - w))
         let y = dropY
         const occupied = [...prev, ...placed]
         while (occupied.some(li =>
@@ -308,16 +544,16 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
             if (!tool) return null
             const Component = getComponent(toolId)
             return (
-              <div key={instanceId}>
+              <div key={instanceId} data-instance-id={instanceId}>
                 <ToolCard tool={tool} instanceId={instanceId} onRemove={() => removeTool(instanceId)}>
                   {Component && <Component instanceId={instanceId} />}
                 </ToolCard>
               </div>
             )
           })}
-          {fileItems.map((file) => (
+          {dashFiles.map((file) => (
             <div key={file.id}>
-              <FileCard file={file} onRemove={() => removeFileItem(file.id)} />
+              <FileCard fileId={file.id} onRemove={() => removeFileItem(file.id)} />
             </div>
           ))}
         </GridLayout>

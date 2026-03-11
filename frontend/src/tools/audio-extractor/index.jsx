@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import Spinner from '../../components/Spinner'
+import formatBytes from '../../lib/formatBytes'
 
 const VIDEO_EXTS = ['mp4', 'mov', 'avi', 'webm', 'mkv']
 const AUDIO_FORMATS = ['mp3', 'wav', 'ogg', 'm4a', 'flac']
@@ -9,11 +11,6 @@ const MIME = {
 
 function getExt(filename) {
   return filename.split('.').pop().toLowerCase()
-}
-
-function formatBytes(bytes) {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 let _ffmpeg = null
@@ -230,13 +227,5 @@ export default function AudioExtractor() {
       </div>
 
     </div>
-  )
-}
-
-function Spinner() {
-  return (
-    <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 2a10 10 0 1 0 10 10" />
-    </svg>
   )
 }

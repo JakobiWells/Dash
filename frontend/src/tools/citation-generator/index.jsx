@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Spinner from '../../components/Spinner'
 
 const STORAGE_KEY = 'dash-citations-v1'
 
@@ -626,14 +627,5 @@ export default function CitationGenerator() {
       )}
 
     </div>
-  )
-}
-
-function Spinner() {
-  return (
-    <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24"
-      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 2a10 10 0 1 0 10 10" />
-    </svg>
   )
 }

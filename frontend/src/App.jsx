@@ -4,8 +4,10 @@ import AuthModal from './components/AuthModal'
 import UpgradeModal from './components/UpgradeModal'
 import LayoutSwitcher from './shell/LayoutSwitcher'
 import { useAuth } from './context/AuthContext'
+import { FileProvider } from './context/FileContext'
 import { usePro } from './hooks/usePro'
 import {
+import Spinner from './components/Spinner'
   fetchLayouts,
   upsertLayout,
   deleteLayout,
@@ -40,13 +42,6 @@ function CheckIcon() {
   )
 }
 
-function MiniSpinner() {
-  return (
-    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 2a10 10 0 1 0 10 10"/>
-    </svg>
-  )
-}
 
 export default function App() {
   const { user, signOut, loading } = useAuth()
@@ -94,6 +89,46 @@ export default function App() {
     document.documentElement.classList.toggle('dark', darkMode)
     localStorage.setItem('dashpad-dark', darkMode ? '1' : '')
   }, [darkMode])
+
+  // ── Right-click pan ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const pan = { active: false, startX: 0, startY: 0, scrollX: 0, scrollY: 0 }
+
+    function onMouseDown(e) {
+      if (e.button !== 2) return
+      pan.active = true
+      pan.startX = e.clientX
+      pan.startY = e.clientY
+      pan.scrollX = mainRef.current?.scrollLeft ?? 0
+      pan.scrollY = window.scrollY
+      document.body.style.cursor = 'grabbing'
+      e.preventDefault()
+    }
+    function onMouseMove(e) {
+      if (!pan.active) return
+      const dx = e.clientX - pan.startX
+      const dy = e.clientY - pan.startY
+      if (mainRef.current) mainRef.current.scrollLeft = pan.scrollX - dx
+      window.scrollTo({ top: pan.scrollY - dy, behavior: 'instant' })
+    }
+    function onMouseUp(e) {
+      if (e.button !== 2) return
+      pan.active = false
+      document.body.style.cursor = ''
+    }
+    function onContextMenu(e) { e.preventDefault() }
+
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+    document.addEventListener('contextmenu', onContextMenu)
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+      document.removeEventListener('contextmenu', onContextMenu)
+    }
+  }, [])
 
   useEffect(() => {
     function handleWheel(e) {
@@ -294,6 +329,7 @@ export default function App() {
   const canSave = !!user && !saving
 
   return (
+    <FileProvider>
     <div>
       <header
         className="flex items-center px-6 relative bg-[#f8f8f6] dark:bg-[#111110]"
@@ -354,7 +390,7 @@ export default function App() {
             }`}
             aria-label="Save layout"
           >
-            {saving ? <MiniSpinner /> : savedTick ? <CheckIcon /> : <SaveIcon />}
+            {saving ? <Spinner size={14} /> : savedTick ? <CheckIcon /> : <SaveIcon />}
           </button>
 
           {/* Settings */}
@@ -489,5 +525,6 @@ export default function App() {
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
       {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}
     </div>
+    </FileProvider>
   )
 }

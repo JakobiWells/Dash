@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import ProgressBar from '../../shell/ProgressBar'
 import { convert, getCategory } from './converter'
+import Spinner from '../../components/Spinner'
+import formatBytes from '../../lib/formatBytes'
 
 const CONVERSION_MAP = {
   png:  ['jpg', 'webp', 'gif', 'bmp', 'tiff'],
@@ -37,12 +39,6 @@ const CONVERSION_MAP = {
 
 function getExtension(filename) {
   return filename.split('.').pop().toLowerCase()
-}
-
-function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 export default function FileConverter() {
@@ -218,14 +214,6 @@ export default function FileConverter() {
       <OutputSection outputs={outputs} setOutputs={setOutputs} />
 
     </div>
-  )
-}
-
-function Spinner() {
-  return (
-    <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 2a10 10 0 1 0 10 10" />
-    </svg>
   )
 }
 

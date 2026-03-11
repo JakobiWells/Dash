@@ -3,6 +3,13 @@
   "name": "Scale Explorer",
   "description": "Pick any root and scale type to see notes highlighted on a piano keyboard with scale degrees",
   "icon": "🎼",
-  "defaultSize": { "w": 7, "h": 7 },
-  "minSize": { "w": 5, "h": 6 }
+  "category": "Music",
+  "defaultSize": {
+    "w": 7,
+    "h": 7
+  },
+  "minSize": {
+    "w": 5,
+    "h": 6
+  }
 }

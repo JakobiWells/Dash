@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import Spinner from '../../components/Spinner'
 
 const API = import.meta.env.VITE_API_URL || 'https://dashapi-production.up.railway.app'
 
@@ -272,14 +273,5 @@ export default function HandwritingConverter() {
       )}
 
     </div>
-  )
-}
-
-function Spinner() {
-  return (
-    <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24"
-      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 2a10 10 0 1 0 10 10" />
-    </svg>
   )
 }

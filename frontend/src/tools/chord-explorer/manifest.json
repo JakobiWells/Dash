@@ -3,6 +3,13 @@
   "name": "Chord Explorer",
   "description": "Browse common chord types for any root note and see the notes highlighted on a piano keyboard",
   "icon": "🎸",
-  "defaultSize": { "w": 7, "h": 10 },
-  "minSize": { "w": 5, "h": 8 }
+  "category": "Music",
+  "defaultSize": {
+    "w": 7,
+    "h": 10
+  },
+  "minSize": {
+    "w": 5,
+    "h": 8
+  }
 }

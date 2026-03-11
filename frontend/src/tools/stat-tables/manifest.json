@@ -3,6 +3,13 @@
   "name": "Stat Tables",
   "description": "Z, t, chi-square, and F distribution tables with exact p-value and critical value calculators",
   "icon": "📐",
-  "defaultSize": { "w": 7, "h": 12 },
-  "minSize": { "w": 6, "h": 8 }
+  "category": "Math",
+  "defaultSize": {
+    "w": 7,
+    "h": 12
+  },
+  "minSize": {
+    "w": 6,
+    "h": 8
+  }
 }

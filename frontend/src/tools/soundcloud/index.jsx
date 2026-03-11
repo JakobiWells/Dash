@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import Spinner from '../../components/Spinner'
 
 const API_BASE = 'https://dash-production-3e07.up.railway.app'
 const SC_API   = 'https://api.soundcloud.com'
@@ -430,14 +431,6 @@ function PlaylistRow({ playlist, onPlay }) {
         <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{marginLeft:'1px'}}><path d="M8 5v14l11-7z"/></svg>
       </button>
     </div>
-  )
-}
-
-function Spinner() {
-  return (
-    <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 2a10 10 0 1 0 10 10" />
-    </svg>
   )
 }
 

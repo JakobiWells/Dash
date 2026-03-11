@@ -3,6 +3,13 @@
   "name": "Circle of Fifths",
   "description": "Interactive circle of fifths with Camelot wheel — click any key to explore harmonic relationships, relative keys, and DJ-compatible keys",
   "icon": "🎼",
-  "defaultSize": { "w": 6, "h": 10 },
-  "minSize": { "w": 4, "h": 8 }
+  "category": "Music",
+  "defaultSize": {
+    "w": 6,
+    "h": 10
+  },
+  "minSize": {
+    "w": 4,
+    "h": 8
+  }
 }

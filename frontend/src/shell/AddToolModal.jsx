@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 
-const CATEGORY_ORDER = ['Finance', 'Text', 'Files', 'Developer', 'Math', 'Productivity', 'Games']
+const CATEGORY_ORDER = ['Finance', 'Text', 'Files', 'Developer', 'Math', 'Science', 'Music', 'Productivity', 'Utilities', 'AI', 'Games']
 
 export default function AddToolModal({ tools, onAdd, onClose }) {
   const [query, setQuery] = useState('')

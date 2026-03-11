@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import Spinner from '../../components/Spinner'
 
 const CLIENT_ID = 'fd637b915ef54f6890381c8d70e0bd84'
 const REDIRECT_URI = typeof window !== 'undefined' && window.location.hostname === 'localhost'
@@ -535,14 +536,6 @@ function PlaylistRow({ playlist, onPlay, sdkReady }) {
 
 function Empty({ children }) {
   return <p className="text-xs text-gray-300 text-center pt-6">{children}</p>
-}
-
-function Spinner() {
-  return (
-    <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 2a10 10 0 1 0 10 10" />
-    </svg>
-  )
 }
 
 function SpotifyLogo({ className }) {

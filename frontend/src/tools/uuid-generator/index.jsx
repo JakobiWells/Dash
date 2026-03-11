@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import useClipboard from '../../hooks/useClipboard'
 
 // Helper: generate UUID v4
 function generateUUID() {
@@ -21,6 +22,7 @@ function generateUUID() {
 export default function UUIDGenerator() {
   const [count, setCount] = useState(1)
   const [uuids, setUUIDs] = useState([])
+  const { copied, copy } = useClipboard()
 
   const handleGenerate = () => {
     const n = Math.max(1, Math.min(100, parseInt(count, 10) || 1)) // limit 1–100
@@ -30,7 +32,7 @@ export default function UUIDGenerator() {
 
   const handleCopyAll = () => {
     if (uuids.length) {
-      navigator.clipboard.writeText(uuids.join('\n'))
+      copy(uuids.join('\n'))
     }
   }
 

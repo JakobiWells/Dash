@@ -3,6 +3,13 @@
   "name": "Apple Music",
   "description": "Browse your Apple Music library and control playback — log in with your Apple ID",
   "icon": "🎵",
-  "defaultSize": { "w": 5, "h": 12 },
-  "minSize": { "w": 4, "h": 8 }
+  "category": "Music",
+  "defaultSize": {
+    "w": 5,
+    "h": 12
+  },
+  "minSize": {
+    "w": 4,
+    "h": 8
+  }
 }

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { loadJSON, saveJSON } from '../../lib/localStorage'
+import useClipboard from '../../hooks/useClipboard'
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -37,17 +39,14 @@ function todayKey() {
 }
 
 function getWordsUsed() {
-  try {
-    const raw = localStorage.getItem('translator-usage')
-    if (!raw) return 0
-    const { date, used } = JSON.parse(raw)
-    return date === todayKey() ? used : 0
-  } catch { return 0 }
+  const data = loadJSON('translator-usage')
+  if (!data) return 0
+  return data.date === todayKey() ? data.used : 0
 }
 
 function recordWords(n) {
   const used = getWordsUsed() + n
-  localStorage.setItem('translator-usage', JSON.stringify({ date: todayKey(), used }))
+  saveJSON('translator-usage', { date: todayKey(), used })
   return used
 }
 
@@ -80,8 +79,8 @@ export default function Translator() {
   const [detectedLangCode, setDetectedLangCode] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState(null)
-  const [copiedInput, setCopiedInput]   = useState(false)
-  const [copiedOutput, setCopiedOutput] = useState(false)
+  const { copied: copiedInput, copy: copyInput }   = useClipboard()
+  const { copied: copiedOutput, copy: copyOutput } = useClipboard()
   const [wordsUsed, setWordsUsed] = useState(() => getWordsUsed())
 
   const wordsRemaining = DAILY_LIMIT - wordsUsed
@@ -160,20 +159,6 @@ export default function Translator() {
     setOutput(input)
     setDetectedLang(null)
     setDetectedLangCode(null)
-  }
-
-  function copyInput() {
-    if (!input) return
-    navigator.clipboard.writeText(input)
-    setCopiedInput(true)
-    setTimeout(() => setCopiedInput(false), 1500)
-  }
-
-  function copyOutput() {
-    if (!output) return
-    navigator.clipboard.writeText(output)
-    setCopiedOutput(true)
-    setTimeout(() => setCopiedOutput(false), 1500)
   }
 
   const selectClass   = 'flex-1 text-sm bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-gray-400 cursor-pointer'

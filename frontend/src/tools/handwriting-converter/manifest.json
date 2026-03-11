@@ -3,6 +3,13 @@
   "name": "Handwriting to Text",
   "description": "Draw or upload handwritten text and math — converts to plain text and LaTeX using AI",
   "icon": "✍️",
-  "defaultSize": { "w": 7, "h": 12 },
-  "minSize": { "w": 5, "h": 10 }
+  "category": "AI",
+  "defaultSize": {
+    "w": 7,
+    "h": 12
+  },
+  "minSize": {
+    "w": 5,
+    "h": 10
+  }
 }
