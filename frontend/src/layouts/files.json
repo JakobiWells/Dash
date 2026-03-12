@@ -1,0 +1,7 @@
+{
+  "id": "files",
+  "name": "Files & Media",
+  "icon": "📁",
+  "accent": "#fb923c",
+  "tools": ["file-converter", "media-downloader", "pdf-merger", "pdf-splitter", "bg-remover", "handwriting-converter"]
+}

@@ -1,0 +1,7 @@
+{
+  "id": "finance",
+  "name": "Finance",
+  "icon": "📈",
+  "accent": "#a3e635",
+  "tools": ["stock-chart", "markets", "forex", "loan-calculator", "tip-calculator", "calculator"]
+}

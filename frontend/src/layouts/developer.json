@@ -1,0 +1,7 @@
+{
+  "id": "developer",
+  "name": "Developer",
+  "icon": "💻",
+  "accent": "#60a5fa",
+  "tools": ["monaco", "regex-tester", "mermaid", "katex", "uuid-generator", "qr-code", "number-converter", "color-tool"]
+}

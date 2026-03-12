@@ -1,0 +1,7 @@
+{
+  "id": "productivity",
+  "name": "Productivity",
+  "icon": "📋",
+  "accent": "#34d399",
+  "tools": ["notepad", "todo", "calendar", "pomodoro-timer", "habit-tracker", "days-counter"]
+}

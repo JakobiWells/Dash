@@ -1,0 +1,7 @@
+{
+  "id": "math",
+  "name": "Math & Science",
+  "icon": "🧮",
+  "accent": "#818cf8",
+  "tools": ["desmos", "formula-bank", "matrix-calc", "stat-tables", "periodic-table", "katex"]
+}

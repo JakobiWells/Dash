@@ -1,0 +1,7 @@
+{
+  "id": "music",
+  "name": "Music",
+  "icon": "🎵",
+  "accent": "#f472b6",
+  "tools": ["chord-explorer", "circle-of-fifths", "scale-explorer", "key-bpm-detector", "metronome", "stem-splitter"]
+}
