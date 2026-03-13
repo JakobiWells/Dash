@@ -106,7 +106,7 @@ export default function WelcomeCard({ onDismiss, onPreviewCategory, onClearPrevi
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-tight">{cat.name}</div>
                     <div className="text-[11px] text-gray-400 dark:text-gray-500 leading-tight mt-0.5 truncate">
-                      {cat.tools.slice(0, 4).join(', ').replace(/-/g, ' ')}
+                      {cat.tools.slice(0, 4).map(t => (typeof t === 'string' ? t : t.id).replace(/-/g, ' ')).join(', ')}
                       {cat.tools.length > 4 ? ` +${cat.tools.length - 4} more` : ''}
                     </div>
                   </div>

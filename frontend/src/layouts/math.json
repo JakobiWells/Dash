@@ -3,5 +3,12 @@
   "name": "Math & Science",
   "icon": "🧮",
   "accent": "#818cf8",
-  "tools": ["desmos", "formula-bank", "matrix-calc", "stat-tables", "periodic-table", "katex"]
+  "tools": [
+    { "id": "desmos",          "x": 20, "y": 0  },
+    { "id": "formula-bank",    "x": 34, "y": 0  },
+    { "id": "stat-tables",     "x": 43, "y": 0  },
+    { "id": "matrix-calc",     "x": 20, "y": 16 },
+    { "id": "periodic-table",  "x": 29, "y": 16 },
+    { "id": "katex",           "x": 34, "y": 13 }
+  ]
 }

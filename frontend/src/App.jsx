@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react'
 import Grid from './shell/Grid'
 import AuthModal from './components/AuthModal'
 import UpgradeModal from './components/UpgradeModal'
@@ -14,6 +14,8 @@ import {
   loadLayoutById,
   FREE_LAYOUT_LIMIT,
 } from './store/layout'
+import { GuideContext } from './context/GuideContext'
+import GuidePanel, { PANEL_W } from './shell/GuidePanel'
 
 function GearIcon() {
   return (
@@ -47,6 +49,25 @@ export default function App() {
   const { user, signOut, loading } = useAuth()
   const { isPro } = usePro()
   const gridRef = useRef(null)
+
+  // Guide panel state — auto-open welcome on first visit
+  const [activeGuideId, setActiveGuideId] = useState(() =>
+    !localStorage.getItem('toolbox-layout-v3') ? 'getting-started' : null
+  )
+  const openGuide  = useCallback((id) => setActiveGuideId(id), [])
+  const closeGuide = useCallback(() => { setActiveGuideId(null); gridRef.current?.clearPreview() }, [])
+  const applyLayout = useCallback((catId) => {
+    gridRef.current?.applyLayout(catId)
+    closeGuide()
+  }, [closeGuide])
+  const previewCategory = useCallback((catId) => { gridRef.current?.setPreviewCategory(catId) }, [])
+  const clearPreview    = useCallback(() => { gridRef.current?.clearPreview() }, [])
+  const guideContextValue = useMemo(
+    () => ({ activeGuideId, openGuide, closeGuide, applyLayout, previewCategory, clearPreview }),
+    [activeGuideId, openGuide, closeGuide, applyLayout, previewCategory, clearPreview]
+  )
+  const guideOpen = activeGuideId !== null
+  const [panelWidth, setPanelWidth] = useState(PANEL_W)
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -329,10 +350,11 @@ export default function App() {
   const canSave = !!user && !saving
 
   return (
+    <GuideContext.Provider value={guideContextValue}>
     <FileProvider>
     <div>
       <header
-        className="flex items-center px-6 relative bg-[#f8f8f6] dark:bg-[#111110]"
+        className="flex items-center px-6 relative bg-[#f8f8f6] dark:bg-[#111110] sticky top-0 z-50"
         style={{ height: '64px' }}
       >
         <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 tracking-tight">Dashpad</h1>
@@ -363,6 +385,23 @@ export default function App() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+
+          {/* Guides */}
+          <button
+            onClick={() => guideOpen ? closeGuide() : setActiveGuideId('__browse__')}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+              guideOpen
+                ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-800'
+            }`}
+            aria-label="Guides"
+            title="Guides"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+          </button>
 
           {/* Feedback */}
           <button
@@ -508,7 +547,21 @@ export default function App() {
         </div>
       </header>
 
-      <main ref={mainRef} className="overflow-x-auto">
+      <GuidePanel
+        activeGuideId={activeGuideId}
+        onClose={closeGuide}
+        onNavigate={(id) => setActiveGuideId(id ?? '__browse__')}
+        width={panelWidth}
+        onWidthChange={setPanelWidth}
+      />
+
+      <main
+        ref={mainRef}
+        className="overflow-x-auto"
+        style={{
+          marginLeft: guideOpen ? panelWidth : 0,
+        }}
+      >
         <div
           className="grid-bg"
           style={{
@@ -526,5 +579,6 @@ export default function App() {
       {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}
     </div>
     </FileProvider>
+    </GuideContext.Provider>
   )
 }

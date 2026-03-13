@@ -98,6 +98,57 @@ app.post('/api/sc/token', async (c) => {
   }
 })
 
+// ── Shazam song recognition ───────────────────────────────────────────────────
+app.post('/api/shazam/recognize', async (c) => {
+  const body = await c.req.json()
+  const { audio, apiKey: userKey } = body
+  const apiKey = userKey || process.env.RAPIDAPI_KEY
+  if (!apiKey) return c.json({ error: 'No RapidAPI key provided' }, 400)
+
+  if (!audio) return c.json({ error: 'audio is required' }, 400)
+
+  try {
+    const res = await fetch('https://shazam.p.rapidapi.com/songs/detect', {
+      method: 'POST',
+      headers: {
+        'content-type': 'text/plain',
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'shazam.p.rapidapi.com',
+      },
+      body: audio,
+    })
+    const text = await res.text()
+    let data
+    try { data = JSON.parse(text) } catch {
+      return c.json({ error: `Shazam API error (${res.status}): ${text.slice(0, 200)}` }, 502)
+    }
+    return c.json(data, res.status)
+  } catch (err) {
+    return c.json({ error: err.message }, 502)
+  }
+})
+
+// ── AviationStack flight proxy (free tier is HTTP-only, must proxy server-side) ──
+app.get('/api/flights', async (c) => {
+  const apiKey = c.req.query('key')
+  const flightIata = c.req.query('flight_iata')
+  if (!apiKey) return c.json({ error: 'API key required' }, 400)
+  if (!flightIata) return c.json({ error: 'flight_iata required' }, 400)
+
+  try {
+    const url = `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${encodeURIComponent(flightIata)}&limit=5`
+    const res = await fetch(url)
+    const text = await res.text()
+    let data
+    try { data = JSON.parse(text) } catch {
+      return c.json({ error: `AviationStack error: ${text.slice(0, 200)}` }, 502)
+    }
+    return c.json(data, res.status)
+  } catch (err) {
+    return c.json({ error: err.message }, 502)
+  }
+})
+
 // Media download — GET version for native browser download with progress bar
 app.get('/api/media/download', async (c) => {
   const sourceUrl = c.req.query('url')

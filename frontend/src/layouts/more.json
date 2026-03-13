@@ -1,0 +1,15 @@
+{
+  "id": "more",
+  "name": "& Much More",
+  "icon": "✨",
+  "accent": "#a78bfa",
+  "tools": [
+    { "id": "chess-vs-computer", "x": 20, "y": 0  },
+    { "id": "color-tool",        "x": 34, "y": 0  },
+    { "id": "weather",           "x": 20, "y": 14 },
+    { "id": "qr-code",           "x": 44, "y": 0  },
+    { "id": "translator",        "x": 30, "y": 14 },
+    { "id": "calculator",        "x": 40, "y": 14 },
+    { "id": "maps",              "x": 14, "y": 0  }
+  ]
+}

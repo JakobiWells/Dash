@@ -1,5 +1,7 @@
-import { Component, useState, useRef, useEffect } from 'react'
+import { Component, useState, useRef, useEffect, useContext } from 'react'
 import { createPortal } from 'react-dom'
+import { GuideContext } from '../context/GuideContext'
+import { getGuideByToolId } from '../guides'
 
 class ErrorBoundary extends Component {
   state = { error: null }
@@ -30,6 +32,8 @@ function saveCustom(instanceId, data) {
 }
 
 export default function ToolCard({ tool, instanceId, onRemove, children }) {
+  const guideCtx = useContext(GuideContext)
+  const guide = getGuideByToolId(tool.id)
   const [showSettings, setShowSettings] = useState(false)
   const [dropdownPos, setDropdownPos]   = useState({ top: 0, right: 0 })
   const gearBtnRef  = useRef(null)
@@ -86,6 +90,18 @@ export default function ToolCard({ tool, instanceId, onRemove, children }) {
             ? <span className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">{displayName}</span>
             : null}
         </div>
+        {guide && guideCtx && (
+          <button
+            className="px-2 h-full text-gray-300 dark:text-gray-600 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors cursor-pointer shrink-0"
+            onClick={() => guideCtx.openGuide(guide.id)}
+            aria-label="Open guide"
+          >
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <circle cx="8" cy="8" r="6.5"/>
+              <path d="M8 11V8M8 5.5v-.5"/>
+            </svg>
+          </button>
+        )}
         <button
           ref={gearBtnRef}
           className="px-2 h-full text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 transition-colors cursor-pointer shrink-0"

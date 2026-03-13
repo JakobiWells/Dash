@@ -1,0 +1,9 @@
+{
+  "id": "map-generator",
+  "name": "Map Generator",
+  "description": "Generate beautiful custom map images in different styles — copy the URL or embed code.",
+  "icon": "🗺️",
+  "category": "Developer",
+  "defaultSize": { "w": 6, "h": 12 },
+  "minSize": { "w": 4, "h": 10 }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "maps",
+  "name": "Maps",
+  "description": "Interactive map with place search and geolocation.",
+  "icon": "🗺️",
+  "category": "More",
+  "defaultSize": { "w": 6, "h": 12 },
+  "minSize": { "w": 4, "h": 8 }
+}

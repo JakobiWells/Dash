@@ -1,0 +1,9 @@
+{
+  "id": "shazam",
+  "name": "Shazam",
+  "description": "Identify any song playing around you instantly.",
+  "icon": "🎵",
+  "category": "Music",
+  "defaultSize": { "w": 4, "h": 9 },
+  "minSize": { "w": 3, "h": 7 }
+}

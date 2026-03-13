@@ -3,5 +3,12 @@
   "name": "Files & Media",
   "icon": "📁",
   "accent": "#fb923c",
-  "tools": ["file-converter", "media-downloader", "pdf-merger", "pdf-splitter", "bg-remover", "handwriting-converter"]
+  "tools": [
+    { "id": "file-converter",        "x": 20, "y": 0  },
+    { "id": "bg-remover",            "x": 32, "y": 0  },
+    { "id": "media-downloader",      "x": 20, "y": 10 },
+    { "id": "pdf-merger",            "x": 44, "y": 0  },
+    { "id": "handwriting-converter", "x": 28, "y": 10 },
+    { "id": "pdf-splitter",          "x": 44, "y": 12 }
+  ]
 }

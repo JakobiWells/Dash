@@ -3,5 +3,12 @@
   "name": "Finance",
   "icon": "📈",
   "accent": "#a3e635",
-  "tools": ["stock-chart", "markets", "forex", "loan-calculator", "tip-calculator", "calculator"]
+  "tools": [
+    { "id": "stock-chart",     "x": 20, "y": 0  },
+    { "id": "markets",         "x": 36, "y": 0  },
+    { "id": "forex",           "x": 20, "y": 11 },
+    { "id": "loan-calculator", "x": 34, "y": 14 },
+    { "id": "calculator",      "x": 34, "y": 11 },
+    { "id": "tip-calculator",  "x": 20, "y": 23 }
+  ]
 }

@@ -1,0 +1,9 @@
+{
+  "id": "ip-lookup",
+  "name": "IP Lookup",
+  "description": "Look up geolocation, ISP, and network info for any IP address.",
+  "icon": "🌐",
+  "category": "Developer",
+  "defaultSize": { "w": 4, "h": 9 },
+  "minSize": { "w": 3, "h": 7 }
+}

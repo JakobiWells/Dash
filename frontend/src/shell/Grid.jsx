@@ -3,7 +3,6 @@ import GridLayout from 'react-grid-layout'
 import { getTools, getComponent } from '../registry'
 import ToolCard from '../components/ToolCard'
 import FileCard from './FileCard'
-import WelcomeCard from './WelcomeCard'
 import AddToolModal from './AddToolModal'
 import { useAuth } from '../context/AuthContext'
 import { useDashFiles } from '../context/FileContext'
@@ -28,22 +27,18 @@ function getToolId(instanceId) {
 
 const LAYOUT_KEY = 'toolbox-layout-v3'
 const ACTIVE_KEY = 'toolbox-active-ids-v3'
-const WELCOME_ID = 'welcome__0'
-const WELCOME_ITEM = { i: WELCOME_ID, x: 0, y: 0, w: 11, h: 22, minW: 7, minH: 10 }
 
-// Default tools shown on first visit, positioned to the right of the welcome card
 const DEFAULT_TOOL_IDS = ['desmos', 'media-downloader', 'calculator', 'qr-code', 'google-drive', 'notepad']
 
 function buildFirstVisitLayout() {
-  // Welcome card occupies x:0-10 (w:11)
-  // Two columns to the right: col A = x:11 (w:14), col B = x:25 (w:8-10)
+  // Two columns: col A = x:0 (w:14), col B = x:14
   const positions = [
-    { x: 11, y: 0  },  // desmos          14×16
-    { x: 25, y: 0  },  // media-downloader 8×10
-    { x: 25, y: 10 },  // calculator       8×14
-    { x: 33, y: 0  },  // qr-code         10×18
-    { x: 11, y: 16 },  // google-drive    14×18
-    { x: 25, y: 24 },  // notepad          8×10
+    { x: 0,  y: 0  },  // desmos          14×16
+    { x: 14, y: 0  },  // media-downloader  8×10
+    { x: 14, y: 10 },  // calculator        8×14
+    { x: 22, y: 0  },  // qr-code          10×18
+    { x: 0,  y: 16 },  // google-drive     14×18
+    { x: 14, y: 24 },  // notepad           8×10
   ]
   return DEFAULT_TOOL_IDS.map((id, i) => {
     const tool = ALL_TOOLS.find(t => t.id === id)
@@ -60,22 +55,30 @@ function buildFirstVisitLayout() {
   }).filter(Boolean)
 }
 
-// Build a 2-column preview layout for a category, positioned right of the welcome card
-function buildCategoryPreviewLayout(toolIds) {
-  const cols = [
-    { x: 11, w: 14, nextY: 0 },
-    { x: 25, w: 13, nextY: 0 },
+// Build layout items from layout JSON tool defs.
+// Each def is either a string "tool-id" or { id, x, y } with explicit grid position.
+// Layout JSONs use x:20+ (designed with welcome card at x:0-19), so subtract 20.
+function buildCategoryLayout(toolDefs) {
+  const autoCols = [
+    { x: 0, w: 14, nextY: 0 },
+    { x: 14, w: 13, nextY: 0 },
   ]
-  const items = []
-  toolIds.slice(0, 8).forEach((toolId, i) => {
+  let autoIdx = 0
+  return toolDefs.slice(0, 8).map(def => {
+    const toolId = typeof def === 'string' ? def : def.id
     const tool = ALL_TOOLS.find(t => t.id === toolId)
-    if (!tool) return
-    const col = cols[i % 2]
+    if (!tool) return null
+    const w = tool.defaultSize?.w ?? 10
     const h = tool.defaultSize?.h ?? 8
-    items.push({ i: `preview__${toolId}`, x: col.x, y: col.nextY, w: col.w, h, minW: col.w, minH: h })
+    if (typeof def === 'object' && def.x != null && def.y != null) {
+      return { i: toolId, x: Math.max(0, def.x - 20), y: def.y, w, h, minW: w, minH: h }
+    }
+    const col = autoCols[autoIdx % 2]
+    const item = { i: toolId, x: col.x, y: col.nextY, w: col.w, h, minW: col.w, minH: h }
     col.nextY += h
-  })
-  return items
+    autoIdx++
+    return item
+  }).filter(Boolean)
 }
 
 // Convert the current browser viewport to grid cell coordinates
@@ -206,28 +209,22 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
     return DEFAULT_TOOL_IDS.map(id => `${id}__0`)
   })
 
-  // Session-only — welcome shows every page load for non-signed-in users
-  const [welcomeDismissed, setWelcomeDismissed] = useState(false)
-  const showWelcome = !loading && !user && !welcomeDismissed
-
-  // Category preview state (hover on welcome card)
-  const [previewCategoryId, setPreviewCategoryId] = useState(null)
-
   const [layout, setLayout] = useState(() => {
     const saved = loadSaved()
     if (saved !== null) return saved
     return buildFirstVisitLayout()
   })
 
-  // Preview items derived from hovered category
+  // Category preview (driven from guide panel WelcomeView hover)
+  const [previewCategoryId, setPreviewCategoryId] = useState(null)
+
   const previewItems = useMemo(() => {
-    if (!previewCategoryId || !showWelcome) return []
+    if (!previewCategoryId) return []
     const cat = LAYOUTS.find(l => l.id === previewCategoryId)
     if (!cat) return []
-    return buildCategoryPreviewLayout(cat.tools)
-  }, [previewCategoryId, showWelcome])
+    return buildCategoryLayout(cat.tools).map(item => ({ ...item, i: `preview__${item.i}` }))
+  }, [previewCategoryId])
 
-  // Display layout: when previewing, replace default tools with preview items
   const displayLayout = useMemo(() => {
     if (!previewItems.length) return layout
     const defaultInstanceIds = new Set(DEFAULT_TOOL_IDS.map(id => `${id}__0`))
@@ -235,20 +232,17 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
     return [...base, ...previewItems]
   }, [layout, previewItems])
 
-  // Dynamic grid size: always extends EXTRA_COLS/EXTRA_ROWS beyond the last tool
-  const displayRight = displayLayout.reduce((m, item) => Math.max(m, item.x + item.w), 0)
-  const toolsRightEdge = Math.max(layout.reduce((m, item) => Math.max(m, item.x + item.w), 0), displayRight)
-  const toolsBottomEdge = displayLayout.reduce((m, item) => Math.max(m, item.y + item.h), 0)
+  // Dynamic grid size: use real layout only — preview items must not cause scroll/resize jumps
+  const toolsRightEdge = layout.reduce((m, item) => Math.max(m, item.x + item.w), 0)
+  const toolsBottomEdge = layout.reduce((m, item) => Math.max(m, item.y + item.h), 0)
   const cols = Math.max(Math.floor(windowWidth / CELL), toolsRightEdge + EXTRA_COLS)
   const effectiveWidth = cols * CELL
   const minGridHeight = (toolsBottomEdge + EXTRA_ROWS) * CELL
 
-  // Expose getState / loadState to parent (App.jsx) via ref for cloud save/load
+  // Expose getState / loadState / applyLayout to parent (App.jsx) via ref
   useImperativeHandle(ref, () => ({
     getState() {
-      const toolsOnly = layout.filter(
-        item => !item.i.startsWith('file__') && !item.i.startsWith('welcome__')
-      )
+      const toolsOnly = layout.filter(item => !item.i.startsWith('file__'))
       return { layout: toolsOnly, activeIds }
     },
     loadState({ layout: newLayout, activeIds: newIds }) {
@@ -257,6 +251,23 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
       saveSaved(newLayout)
       saveActiveIds(newIds)
     },
+    applyLayout(categoryId) {
+      const cat = LAYOUTS.find(l => l.id === categoryId)
+      if (!cat) return
+      const newIds = cat.tools.slice(0, 8).map(def => `${typeof def === 'string' ? def : def.id}__0`)
+      const newLayout = buildCategoryLayout(cat.tools).map(item => ({ ...item, i: item.i + '__0' }))
+      setActiveIds(newIds)
+      saveActiveIds(newIds)
+      setPreviewCategoryId(null)
+      setLayout(prev => {
+        const filesOnly = prev.filter(item => item.i.startsWith('file__'))
+        const combined = [...filesOnly, ...newLayout]
+        saveSaved(combined)
+        return combined
+      })
+    },
+    setPreviewCategory(categoryId) { setPreviewCategoryId(categoryId) },
+    clearPreview() { setPreviewCategoryId(null) },
   }), [layout, activeIds])
 
   // Notify parent when grid state changes (for cloud auto-save)
@@ -264,57 +275,21 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return }
     if (!onStateChange) return
-    const toolsOnly = layout.filter(
-      item => !item.i.startsWith('file__') && !item.i.startsWith('welcome__')
-    )
+    const toolsOnly = layout.filter(item => !item.i.startsWith('file__'))
     onStateChange({ layout: toolsOnly, activeIds })
   }, [layout, activeIds]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Add or remove welcome card from layout whenever showWelcome changes
-  useEffect(() => {
-    setLayout(prev => {
-      const withoutWelcome = prev.filter(item => item.i !== WELCOME_ID)
-      return showWelcome ? [WELCOME_ITEM, ...withoutWelcome] : withoutWelcome
-    })
-  }, [showWelcome])
 
   const onLayoutChange = useCallback((newLayout) => {
     setLayout(newLayout)
     // Guard: skip saving if any tool item is below its manifest minSize
     // (react-grid-layout can emit shrunken sizes on initial mount)
     const corrupted = newLayout.some(item => {
-      if (item.i.startsWith('file__') || item.i.startsWith('welcome__')) return false
+      if (item.i.startsWith('file__')) return false
       const tool = ALL_TOOLS.find(t => t.id === item.i.split('__')[0])
       if (!tool) return false
       return item.w < (tool.minSize?.w ?? 1) || item.h < (tool.minSize?.h ?? 1)
     })
     if (!corrupted) saveSaved(newLayout)
-  }, [])
-
-  const dismissWelcome = useCallback(() => {
-    setWelcomeDismissed(true)
-    setPreviewCategoryId(null)
-  }, [])
-
-  const applyLayout = useCallback((categoryId) => {
-    const cat = LAYOUTS.find(l => l.id === categoryId)
-    if (!cat) return
-    const newIds = cat.tools.map(id => `${id}__0`)
-    const rawPreview = buildCategoryPreviewLayout(cat.tools)
-    const newLayout = rawPreview.map(item => ({
-      ...item,
-      i: item.i.replace('preview__', '') + '__0',
-    }))
-    setActiveIds(newIds)
-    saveActiveIds(newIds)
-    setLayout(prev => {
-      const base = prev.filter(item => item.i === WELCOME_ID || item.i.startsWith('file__'))
-      const combined = [...base, ...newLayout]
-      saveSaved(combined)
-      return combined
-    })
-    setPreviewCategoryId(null)
-    setWelcomeDismissed(true)
   }, [])
 
   const removeTool = useCallback((instanceId) => {
@@ -599,17 +574,6 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
           transformScale={zoom}
           resizableOpts={{ grid: [CELL, CELL] }}
         >
-          {showWelcome && (
-            <div key={WELCOME_ID}>
-              <WelcomeCard
-                onDismiss={dismissWelcome}
-                onPreviewCategory={setPreviewCategoryId}
-                onClearPreview={() => setPreviewCategoryId(null)}
-                onApplyLayout={applyLayout}
-              />
-            </div>
-          )}
-          {/* Regular tools — hidden when preview is showing default tools */}
           {activeIds
             .filter(instanceId => !previewItems.length || !DEFAULT_TOOL_IDS.some(id => instanceId === `${id}__0`))
             .map((instanceId) => {
@@ -625,14 +589,13 @@ const Grid = forwardRef(function Grid({ showAddModal, setShowAddModal, zoom = 1,
                 </div>
               )
             })}
-          {/* Preview tools — shown on category hover, not interactive */}
           {previewItems.map((item) => {
             const toolId = item.i.replace('preview__', '')
             const tool = ALL_TOOLS.find((t) => t.id === toolId)
             if (!tool) return null
             const Component = getComponent(toolId)
             return (
-              <div key={item.i} style={{ pointerEvents: 'none', opacity: 0.6, transition: 'opacity 0.15s' }}>
+              <div key={item.i} style={{ pointerEvents: 'none' }}>
                 <ToolCard tool={tool} instanceId={item.i} onRemove={() => {}}>
                   {Component && <Component instanceId={item.i} />}
                 </ToolCard>

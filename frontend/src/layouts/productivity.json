@@ -3,5 +3,12 @@
   "name": "Productivity",
   "icon": "📋",
   "accent": "#34d399",
-  "tools": ["notepad", "todo", "calendar", "pomodoro-timer", "habit-tracker", "days-counter"]
+  "tools": [
+    { "id": "calendar",       "x": 20, "y": 0  },
+    { "id": "notepad",        "x": 31, "y": 0  },
+    { "id": "todo",           "x": 39, "y": 0  },
+    { "id": "pomodoro-timer", "x": 31, "y": 10 },
+    { "id": "habit-tracker",  "x": 20, "y": 20 },
+    { "id": "days-counter",   "x": 43, "y": 10 }
+  ]
 }

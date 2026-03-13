@@ -3,5 +3,12 @@
   "name": "Music",
   "icon": "🎵",
   "accent": "#f472b6",
-  "tools": ["chord-explorer", "circle-of-fifths", "scale-explorer", "key-bpm-detector", "metronome", "stem-splitter"]
+  "tools": [
+    { "id": "chord-explorer",    "x": 20, "y": 0 },
+    { "id": "circle-of-fifths",  "x": 27, "y": 0 },
+    { "id": "scale-explorer",    "x": 33, "y": 0 },
+    { "id": "key-bpm-detector",  "x": 40, "y": 0 },
+    { "id": "metronome",         "x": 44, "y": 0 },
+    { "id": "stem-splitter",     "x": 33, "y": 7 }
+  ]
 }
