@@ -79,7 +79,7 @@ export default function ToolCard({ tool, instanceId, onRemove, children }) {
   return (
     <div className="h-full flex flex-col bg-white dark:bg-[#1e1e1c] rounded-2xl shadow-sm border border-gray-100 dark:border-[#2e2e2c] overflow-hidden">
       {/* Header / drag handle */}
-      <div className="flex items-center border-b border-gray-100 dark:border-[#2e2e2c] h-8 shrink-0">
+      <div className="flex items-center border-b border-gray-100 dark:border-[#2e2e2c] h-[30px] shrink-0">
         <div className="drag-handle flex items-center gap-1.5 px-3 flex-1 h-full cursor-grab active:cursor-grabbing select-none min-w-0">
           {displayEmoji?.startsWith('/')
             ? <img src={displayEmoji} alt={displayName} className="w-4 h-4 object-contain shrink-0" />
